@@ -1,0 +1,36 @@
+{
+    "name": "backend",
+    "version": "1.0.0",
+    "description": "",
+    "main": "src/index.ts",
+    "scripts": {
+        "dev": "nodemon --watch src src/index.ts | pino-pretty",
+        "build": "tsc"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@trivago/prettier-plugin-sort-imports": "^4.2.0",
+        "@types/node": "^20.5.9",
+        "nodemon": "^3.0.1",
+        "pino-pretty": "^10.2.0",
+        "prettier": "^3.0.3",
+        "ts-node": "^10.8.2",
+        "typescript": "^5.2.2"
+    },
+    "dependencies": {
+        "@fastify/cookie": "^9.0.4",
+        "@fastify/env": "^4.2.0",
+        "@fastify/jwt": "^7.2.1",
+        "@fastify/sensible": "^5.2.0",
+        "@fastify/swagger": "^8.10.0",
+        "@fastify/swagger-ui": "^1.9.3",
+        "@fastify/type-provider-json-schema-to-ts": "^2.2.2",
+        "env-schema": "^5.2.0",
+        "fastify": "^4.22.2",
+        "fastify-plugin": "^4.5.1",
+        "pg": "^8.11.3",
+        "typeorm": "^0.3.17"
+    }
+}
