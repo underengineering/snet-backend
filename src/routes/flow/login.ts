@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { CookieSerializeOptions } from "@fastify/cookie";
 import { JsonSchemaToTsProvider } from "@fastify/type-provider-json-schema-to-ts";
@@ -61,11 +61,11 @@ export default async function addRoutes(app: FastifyInstance) {
             // Hash against zeros if user is not found to prevent timing attacks
             const passwordSalt =
                 foundUser === null
-                    ? Buffer.alloc(32)
+                    ? randomBytes(8)
                     : Buffer.from(foundUser.passwordSalt, "binary");
             const passwordSha256 =
                 foundUser === null
-                    ? Buffer.alloc(8)
+                    ? Buffer.alloc(32)
                     : Buffer.from(foundUser.passwordSha256, "binary");
 
             const providedPasswordSha256 = createHash("sha256")
