@@ -1,4 +1,5 @@
 import {
+    Check,
     Column,
     CreateDateColumn,
     Entity,
@@ -10,6 +11,7 @@ import { Chat } from "./Chat";
 import { User } from "./User";
 
 @Entity()
+@Check("CHK_createdAt", `"createdAt" <= NOW()`)
 export class Message {
     @PrimaryGeneratedColumn("uuid")
     id: string;
@@ -23,7 +25,7 @@ export class Message {
     @ManyToOne(() => Chat, (chat) => chat.messages)
     chat: Chat;
 
-    @Column({ length: 2000 })
+    @Column({ length: 2000, nullable: true, default: null })
     content: string;
 
     @Column({ default: false })

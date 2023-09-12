@@ -1,4 +1,7 @@
 import {
+    Check,
+    Column,
+    CreateDateColumn,
     Entity,
     JoinTable,
     ManyToMany,
@@ -10,6 +13,7 @@ import { Message } from "./Message";
 import { User } from "./User";
 
 @Entity()
+@Check("CHK_deletedAt", `"deletedAt" <= NOW()`)
 export class Chat {
     @PrimaryGeneratedColumn("uuid")
     id: string;
@@ -21,4 +25,10 @@ export class Chat {
     @OneToMany(() => Message, (message) => message.chat)
     @JoinTable()
     messages: Message[];
+
+    @CreateDateColumn({ default: null, nullable: true })
+    deletedAt: Date;
+
+    @Column({ default: false })
+    isDeleted: boolean;
 }

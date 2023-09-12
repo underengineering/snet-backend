@@ -10,11 +10,14 @@ import {
 import { Message } from "./Message";
 
 @Entity()
+@Check("CHK_registeredAt", `"registeredAt" <= NOW()`)
+@Check("CHK_lastOnlineAt", `"lastOnlineAt" <= NOW()`)
 @Check("CHK_nameLength", `LENGTH("name") >= 2`)
 @Check("CHK_surnameLength", `LENGTH("surname") >= 2`)
 @Check("CHK_emailLength", `LENGTH("email") >= 3`)
 @Check("CHK_passwordSha256Len", `LENGTH("passwordSha256") = 32`)
 @Check("CHK_passwordSaltLen", `LENGTH("passwordSalt") = 8`)
+@Check("CHK_deletedAt", `"deletedAt" <= NOW()`)
 export class User {
     @PrimaryGeneratedColumn("uuid")
     id: string;
@@ -42,4 +45,10 @@ export class User {
 
     @OneToMany(() => Message, (message) => message.author)
     messages: Message[];
+
+    @CreateDateColumn({ default: null, nullable: true })
+    deletedAt: Date;
+
+    @Column({ default: false })
+    isDeleted: boolean;
 }
