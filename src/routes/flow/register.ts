@@ -64,14 +64,14 @@ export default async function addRoutes(app: FastifyInstance) {
             const passwordSha256 = createHash("sha256")
                 .update(password)
                 .update(passwordSalt)
-                .digest("binary");
+                .digest("hex");
 
             const newUser = userRepo.create({
                 name,
                 surname,
                 email,
                 passwordSha256,
-                passwordSalt: passwordSalt.toString("binary"),
+                passwordSalt: passwordSalt.toString("hex"),
             });
 
             await userRepo.save(newUser);

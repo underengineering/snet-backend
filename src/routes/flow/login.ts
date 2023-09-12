@@ -63,11 +63,11 @@ export default async function addRoutes(app: FastifyInstance) {
             const passwordSalt =
                 foundUser === null
                     ? randomBytes(8)
-                    : Buffer.from(foundUser.passwordSalt, "binary");
+                    : Buffer.from(foundUser.passwordSalt, "hex");
             const passwordSha256 =
                 foundUser === null
                     ? Buffer.alloc(32)
-                    : Buffer.from(foundUser.passwordSha256, "binary");
+                    : Buffer.from(foundUser.passwordSha256, "hex");
 
             const providedPasswordSha256 = createHash("sha256")
                 .update(password)

@@ -15,8 +15,8 @@ import { Message } from "./Message";
 @Check("CHK_nameLength", `LENGTH("name") >= 2`)
 @Check("CHK_surnameLength", `LENGTH("surname") >= 2`)
 @Check("CHK_emailLength", `LENGTH("email") >= 3`)
-@Check("CHK_passwordSha256Len", `LENGTH("passwordSha256") = 32`)
-@Check("CHK_passwordSaltLen", `LENGTH("passwordSalt") = 8`)
+@Check("CHK_passwordSha256Len", `LENGTH("passwordSha256") = 64`)
+@Check("CHK_passwordSaltLen", `LENGTH("passwordSalt") = 16`)
 @Check("CHK_deletedAt", `"deletedAt" <= NOW()`)
 export class User {
     @PrimaryGeneratedColumn("uuid")
@@ -37,10 +37,10 @@ export class User {
     @Column({ length: 320, unique: true })
     email: string;
 
-    @Column({ type: "bytea" })
+    @Column({ length: 64 })
     passwordSha256: string;
 
-    @Column({ type: "bytea" })
+    @Column({ length: 16 })
     passwordSalt: string;
 
     @OneToMany(() => Message, (message) => message.author)
