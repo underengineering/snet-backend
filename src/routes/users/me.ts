@@ -31,7 +31,7 @@ export default function meRoute(app: FastifyInstance) {
                 id: user.id,
                 registeredAt: user.registeredAt,
                 name: user.name,
-                surname: user.name,
+                surname: user.surname,
                 email: user.email,
             };
         }
