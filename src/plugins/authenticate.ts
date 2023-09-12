@@ -2,6 +2,8 @@ import { onRequestHookHandler } from "fastify";
 import fastifyPlugin from "fastify-plugin";
 
 import { FastifyJwtNamespace } from "@fastify/jwt";
+import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
+import { Type } from "@sinclair/typebox";
 
 import { User } from "../entity/User";
 
@@ -21,19 +23,23 @@ export type JwtBody = {
     readonly id: string;
 };
 
-export const AuthenticateResponseSchema = {
-    403: {
-        description: "User not found or deleted",
-        type: "object",
-        properties: {
-            statusCode: { type: "number" },
-            error: { type: "string" },
-            message: { type: "string" },
-        },
+export const AuthenticateResponseSchema = Type.Object(
+    {
+        statusCode: Type.Integer(),
+        error: Type.String(),
+        message: Type.String(),
     },
-};
+    {
+        $id: "AuthenticateResponseSchema",
+        description: "User not found or deleted",
+    }
+);
 
 const authenticatePlugin = fastifyPlugin(async function (app) {
+    app.withTypeProvider<TypeBoxTypeProvider>().addSchema(
+        AuthenticateResponseSchema
+    );
+
     app.decorateRequest("userId", null);
     app.decorateRequest("userEntity", null);
     app.decorate("authenticate", async (req, res) => {

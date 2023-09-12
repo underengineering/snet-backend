@@ -11,23 +11,28 @@ export default function meRoute(app: FastifyInstance) {
         {
             schema: {
                 response: {
-                    ...AuthenticateResponseSchema,
                     200: Type.Object({
+                        id: Type.String({ format: "uuid" }),
                         registeredAt: Type.String({ format: "date-time" }),
                         name: Type.String(),
                         surname: Type.String(),
                         email: Type.String(),
                     }),
+                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                        "AuthenticateResponseSchema"
+                    ),
                 },
             },
             onRequest: app.authenticate,
         },
         async (req, res) => {
+            const user = req.userEntity;
             return {
-                registeredAt: req.userEntity.registeredAt,
-                name: req.userEntity.name,
-                surname: req.userEntity.name,
-                email: req.userEntity.email,
+                id: user.id,
+                registeredAt: user.registeredAt,
+                name: user.name,
+                surname: user.name,
+                email: user.email,
             };
         }
     );
