@@ -37,10 +37,10 @@ export class User {
     @Column({ length: 320, unique: true })
     email: string;
 
-    @Column({ length: 32 })
+    @Column({ type: "bytea" })
     passwordSha256: string;
 
-    @Column({ length: 8 })
+    @Column({ type: "bytea" })
     passwordSalt: string;
 
     @OneToMany(() => Message, (message) => message.author)

@@ -2,9 +2,11 @@ import { FastifyInstance } from "fastify";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { CookieSerializeOptions } from "@fastify/cookie";
-import { JsonSchemaToTsProvider } from "@fastify/type-provider-json-schema-to-ts";
+import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
+import { Type } from "@sinclair/typebox";
 
 import { User } from "../../entity/User";
+import { JwtBody } from "../../plugins/authenticate";
 
 export default async function addRoutes(app: FastifyInstance) {
     const COOKIE_OPTIONS: CookieSerializeOptions = app.config.JWT_SECURE
@@ -16,22 +18,21 @@ export default async function addRoutes(app: FastifyInstance) {
           }
         : { path: "/" };
 
-    app.withTypeProvider<JsonSchemaToTsProvider>().post(
+    app.withTypeProvider<TypeBoxTypeProvider>().post(
         "/login",
         {
             schema: {
-                body: {
-                    type: "object",
-                    properties: {
-                        email: { type: "string", minLength: 3, maxLength: 320 },
-                        password: {
-                            type: "string",
-                            minLength: 4,
-                            maxLength: 128,
-                        },
-                    },
-                    required: ["email", "password"],
-                },
+                body: Type.Object({
+                    email: Type.String({
+                        format: "email",
+                        minLength: 3,
+                        maxLength: 320,
+                    }),
+                    password: Type.String({
+                        minLength: 4,
+                        maxLength: 128,
+                    }),
+                }),
                 response: {
                     200: {
                         description: "Login success",
@@ -78,10 +79,10 @@ export default async function addRoutes(app: FastifyInstance) {
             )
                 return res.forbidden("Invalid password or email");
 
-            const token = await res.jwtSign(
-                { id: foundUser.id },
-                { sign: { expiresIn: app.config.JWT_EXPIRY_TIME } }
-            );
+            const token = await res.jwtSign({ id: foundUser.id } as JwtBody, {
+                sign: { expiresIn: app.config.JWT_EXPIRY_TIME },
+            });
+
             res.setCookie("token", token, COOKIE_OPTIONS);
 
             return {};

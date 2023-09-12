@@ -1,37 +1,36 @@
 import { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "node:crypto";
 
-import { JsonSchemaToTsProvider } from "@fastify/type-provider-json-schema-to-ts";
+import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
+import { Type } from "@sinclair/typebox";
 
 import { User } from "../../entity/User";
 
 export default async function addRoutes(app: FastifyInstance) {
-    app.withTypeProvider<JsonSchemaToTsProvider>().post(
+    app.withTypeProvider<TypeBoxTypeProvider>().post(
         "/register",
         {
             schema: {
-                body: {
-                    type: "object",
-                    properties: {
-                        name: {
-                            type: "string",
-                            minLength: 2,
-                            maxLength: 32,
-                        },
-                        surname: {
-                            type: "string",
-                            minLength: 2,
-                            maxLength: 32,
-                        },
-                        email: { type: "string", minLength: 3, maxLength: 320 },
-                        password: {
-                            type: "string",
-                            minLength: 4,
-                            maxLength: 128,
-                        },
-                    },
-                    required: ["name", "surname", "email", "password"],
-                },
+                body: Type.Object({
+                    name: Type.String({
+                        minLength: 2,
+                        maxLength: 32,
+                    }),
+                    surname: Type.String({
+                        minLength: 2,
+                        maxLength: 32,
+                    }),
+                    email: Type.String({
+                        format: "email",
+                        minLength: 3,
+                        maxLength: 320,
+                    }),
+                    password: Type.String({
+                        type: "string",
+                        minLength: 4,
+                        maxLength: 128,
+                    }),
+                }),
                 response: {
                     200: {
                         description: "Account registered successfuly",

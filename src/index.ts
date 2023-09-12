@@ -1,3 +1,5 @@
+import Ajv from "ajv";
+import addFormats from "ajv-formats";
 import fastify, { FastifyInstance } from "fastify";
 
 import fastifyCookie from "@fastify/cookie";
@@ -6,6 +8,7 @@ import fastifyJwt from "@fastify/jwt";
 import fastifySensible from "@fastify/sensible";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
+import { Type } from "@sinclair/typebox";
 
 import { Chat } from "./entity/Chat";
 import { Message } from "./entity/Message";
