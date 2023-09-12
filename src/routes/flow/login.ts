@@ -34,20 +34,15 @@ export default async function addRoutes(app: FastifyInstance) {
                     }),
                 }),
                 response: {
-                    200: {
-                        description: "Login success",
-                        type: "object",
-                        properties: {},
-                    },
-                    403: {
-                        description: "Invalid password or email",
-                        type: "object",
-                        properties: {
-                            statusCode: { type: "number" },
-                            error: { type: "string" },
-                            message: { type: "string" },
+                    200: Type.Object({}, { description: "Login success" }),
+                    403: Type.Object(
+                        {
+                            statusCode: Type.Integer({ type: "number" }),
+                            error: Type.String(),
+                            message: Type.String(),
                         },
-                    },
+                        { description: "Invalid password or email" }
+                    ),
                 },
             } as const,
         },

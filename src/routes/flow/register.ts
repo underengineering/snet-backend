@@ -32,20 +32,18 @@ export default async function addRoutes(app: FastifyInstance) {
                     }),
                 }),
                 response: {
-                    200: {
-                        description: "Account registered successfuly",
-                        type: "object",
-                        properties: {},
-                    },
-                    409: {
-                        description: "Tried to register already used email",
-                        type: "object",
-                        properties: {
-                            statusCode: { type: "number" },
-                            error: { type: "string" },
-                            message: { type: "string" },
+                    200: Type.Object(
+                        {},
+                        { description: "Acoount registered successfuly" }
+                    ),
+                    409: Type.Object(
+                        {
+                            statusCode: Type.Integer(),
+                            error: Type.String(),
+                            message: Type.String(),
                         },
-                    },
+                        { description: "Tried to register already used email" }
+                    ),
                 },
             } as const,
         },
