@@ -1,4 +1,4 @@
-import { onRequestHookHandler } from "fastify";
+import { onRequestAsyncHookHandler, onRequestHookHandler } from "fastify";
 import fastifyPlugin from "fastify-plugin";
 
 import { FastifyJwtNamespace } from "@fastify/jwt";
@@ -10,7 +10,7 @@ import { User } from "../entity/User";
 declare module "fastify" {
     interface FastifyInstance
         extends FastifyJwtNamespace<{ namespace: "security" }> {
-        authenticate: onRequestHookHandler;
+        authenticate: onRequestAsyncHookHandler;
     }
 
     interface FastifyRequest {
