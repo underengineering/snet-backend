@@ -1,4 +1,4 @@
-import { FastifyInstance } from "fastify";
+import { FastifyPluginCallback } from "fastify";
 import { createHash, randomBytes } from "node:crypto";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
@@ -6,7 +6,7 @@ import { Type } from "@sinclair/typebox";
 
 import { User } from "../../entity/User";
 
-export default async function addRoutes(app: FastifyInstance) {
+const route: FastifyPluginCallback = (app, _opts, done) => {
     app.withTypeProvider<TypeBoxTypeProvider>().post(
         "/register",
         {
@@ -77,4 +77,8 @@ export default async function addRoutes(app: FastifyInstance) {
             return {};
         }
     );
-}
+
+    done();
+};
+
+export default route;

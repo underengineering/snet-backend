@@ -15,7 +15,10 @@ import envSchema from "./env-schema";
 import authenticatePlugin from "./plugins/authenticate";
 import schemasPlugin from "./plugins/schemas";
 import typeOrmPlugin from "./plugins/typeorm";
-import addRoutes from "./routes";
+import chatsRoute from "./routes/chats";
+import loginRoute from "./routes/flow/login";
+import registerRoute from "./routes/flow/register";
+import usersRoute from "./routes/users";
 
 async function main() {
     const app: FastifyInstance = fastify({
@@ -65,7 +68,10 @@ async function main() {
     });
 
     // Register routes
-    addRoutes(app);
+    app.register(chatsRoute, { prefix: "/chats" });
+    app.register(loginRoute, { prefix: "/flow" });
+    app.register(registerRoute, { prefix: "/flow" });
+    app.register(usersRoute, { prefix: "/users" });
 
     // Start the app
     try {

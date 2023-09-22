@@ -1,4 +1,4 @@
-import { FastifyInstance } from "fastify";
+import { FastifyPluginCallback } from "fastify";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { CookieSerializeOptions } from "@fastify/cookie";
@@ -8,7 +8,7 @@ import { Type } from "@sinclair/typebox";
 import { User } from "../../entity/User";
 import { JwtBody } from "../../plugins/authenticate";
 
-export default async function addRoutes(app: FastifyInstance) {
+const route: FastifyPluginCallback = (app, _opts, done) => {
     const COOKIE_OPTIONS: CookieSerializeOptions = app.config.JWT_SECURE
         ? {
               httpOnly: true,
@@ -83,4 +83,8 @@ export default async function addRoutes(app: FastifyInstance) {
             return {};
         }
     );
-}
+
+    done();
+};
+
+export default route;

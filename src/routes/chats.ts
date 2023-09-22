@@ -1,16 +1,16 @@
-import { FastifyInstance } from "fastify";
+import { FastifyPluginCallback } from "fastify";
 import { In } from "typeorm";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 
-import { Chat } from "../../entity/Chat";
-import { Message } from "../../entity/Message";
-import { FriendRequest, User } from "../../entity/User";
-import { AuthenticateResponseSchema } from "../../plugins/authenticate";
-import { SensibleErrorSchema } from "../../plugins/schemas";
+import { Chat } from "../entity/Chat";
+import { Message } from "../entity/Message";
+import { FriendRequest, User } from "../entity/User";
+import { AuthenticateResponseSchema } from "../plugins/authenticate";
+import { SensibleErrorSchema } from "../plugins/schemas";
 
-export default async function chatRoute(app: FastifyInstance) {
+const route: FastifyPluginCallback = (app, _opts, done) => {
     app.withTypeProvider<TypeBoxTypeProvider>().post(
         "/chats",
         {
@@ -161,4 +161,8 @@ export default async function chatRoute(app: FastifyInstance) {
             return {};
         }
     );
-}
+
+    done();
+};
+
+export default route;

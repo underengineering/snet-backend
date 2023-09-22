@@ -1,15 +1,15 @@
-import { FastifyInstance } from "fastify";
+import { FastifyPluginCallback } from "fastify";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 
-import { FriendRequest, User } from "../../entity/User";
-import { AuthenticateResponseSchema } from "../../plugins/authenticate";
-import { SensibleErrorSchema } from "../../plugins/schemas";
+import { FriendRequest, User } from "../entity/User";
+import { AuthenticateResponseSchema } from "../plugins/authenticate";
+import { SensibleErrorSchema } from "../plugins/schemas";
 
-export default function userRoute(app: FastifyInstance) {
+const route: FastifyPluginCallback = (app, _opts, done) => {
     app.withTypeProvider<TypeBoxTypeProvider>().get(
-        "/users",
+        "/",
         {
             schema: {
                 description: "Get user info",
@@ -48,8 +48,39 @@ export default function userRoute(app: FastifyInstance) {
         }
     );
 
+    app.withTypeProvider<TypeBoxTypeProvider>().get(
+        "/me",
+        {
+            schema: {
+                response: {
+                    200: Type.Object({
+                        id: Type.String({ format: "uuid" }),
+                        registeredAt: Type.String({ format: "date-time" }),
+                        name: Type.String(),
+                        surname: Type.String(),
+                        email: Type.String(),
+                    }),
+                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                        "AuthenticateResponseSchema"
+                    ),
+                },
+            },
+            onRequest: app.authenticate,
+        },
+        async (req) => {
+            const user = req.userEntity;
+            return {
+                id: user.id,
+                registeredAt: user.registeredAt,
+                name: user.name,
+                surname: user.surname,
+                email: user.email,
+            };
+        }
+    );
+
     app.withTypeProvider<TypeBoxTypeProvider>().post(
-        "/users/friendRequests",
+        "/friendRequests",
         {
             schema: {
                 description: "Send friend request",
@@ -118,7 +149,7 @@ export default function userRoute(app: FastifyInstance) {
     );
 
     app.withTypeProvider<TypeBoxTypeProvider>().get(
-        "/users/friendRequests",
+        "/friendRequests",
         {
             schema: {
                 description: "List pending friend requests",
@@ -169,7 +200,7 @@ export default function userRoute(app: FastifyInstance) {
     );
 
     app.withTypeProvider<TypeBoxTypeProvider>().put(
-        "/users/friendRequests",
+        "/friendRequests",
         {
             schema: {
                 description: "Accept a friend request",
@@ -227,7 +258,7 @@ export default function userRoute(app: FastifyInstance) {
     );
 
     app.withTypeProvider<TypeBoxTypeProvider>().delete(
-        "/users/friendRequests",
+        "/friendRequests",
         {
             schema: {
                 description: "Remove a friend request",
@@ -274,4 +305,8 @@ export default function userRoute(app: FastifyInstance) {
             return {};
         }
     );
-}
+
+    done();
+};
+
+export default route;
