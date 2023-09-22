@@ -18,6 +18,9 @@ export class Chat {
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
+    @CreateDateColumn()
+    createdAt: Date;
+
     @ManyToMany(() => User)
     @JoinTable()
     participants: User[];
@@ -26,7 +29,7 @@ export class Chat {
     @JoinTable()
     messages: Message[];
 
-    @CreateDateColumn({ default: null, nullable: true })
+    @Column({ default: null, nullable: true })
     deletedAt: Date;
 
     @Column({ default: false })

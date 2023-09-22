@@ -3,15 +3,49 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    ManyToOne,
     OneToMany,
     PrimaryGeneratedColumn,
+    Relation,
 } from "typeorm";
 
 import { Message } from "./Message";
 
 @Entity()
+@Check("CHK_sentAt", `"sentAt" <= NOW()`)
+@Check("CHK_acceptedAtGreaterThanSentAt", `"acceptedAt" >= "sentAt"`)
+export class FriendRequest {
+    @PrimaryGeneratedColumn("uuid")
+    id: string;
+
+    @ManyToOne(() => User, (user) => user.sentFriendRequests)
+    sender: Relation<User>;
+
+    @ManyToOne(() => User, (user) => user.receivedFriendRequests)
+    receiver: Relation<User>;
+
+    @CreateDateColumn()
+    sentAt: Date;
+
+    @Column({ default: null, nullable: true })
+    acceptedAt: Date;
+
+    @Column({ default: false })
+    isAccepted: boolean;
+
+    @Column({ default: null, nullable: true })
+    removedAt: Date;
+
+    @Column({ default: false })
+    isRemoved: boolean;
+}
+
+@Entity()
 @Check("CHK_registeredAt", `"registeredAt" <= NOW()`)
-@Check("CHK_lastOnlineAt", `"lastOnlineAt" <= NOW()`)
+@Check(
+    "CHK_lastOnlineAt",
+    `"lastOnlineAt" <= NOW() AND "lastOnlineAt" <= "registeredAt"`
+)
 @Check("CHK_nameLength", `LENGTH("name") >= 2`)
 @Check("CHK_surnameLength", `LENGTH("surname") >= 2`)
 @Check("CHK_emailLength", `LENGTH("email") >= 3`)
@@ -45,6 +79,12 @@ export class User {
 
     @OneToMany(() => Message, (message) => message.author)
     messages: Message[];
+
+    @OneToMany(() => FriendRequest, (frientRequest) => frientRequest.sender)
+    sentFriendRequests: FriendRequest[];
+
+    @OneToMany(() => FriendRequest, (frientRequest) => frientRequest.receiver)
+    receivedFriendRequests: FriendRequest[];
 
     @CreateDateColumn({ default: null, nullable: true })
     deletedAt: Date;

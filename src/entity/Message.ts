@@ -13,8 +13,8 @@ import { User } from "./User";
 @Entity()
 @Check("CHK_createdAt", `"createdAt" <= NOW()`)
 export class Message {
-    @PrimaryGeneratedColumn("uuid")
-    id: string;
+    @PrimaryGeneratedColumn()
+    id: number;
 
     @CreateDateColumn()
     createdAt: Date;
