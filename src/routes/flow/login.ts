@@ -6,7 +6,10 @@ import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 
 import { User } from "../../entity/User";
-import { JwtBody } from "../../plugins/authenticate";
+import {
+    AuthenticateResponseSchema,
+    JwtBody,
+} from "../../plugins/authenticate";
 
 const route: FastifyPluginCallback = (app, _opts, done) => {
     const COOKIE_OPTIONS: CookieSerializeOptions = app.config.JWT_SECURE
@@ -35,13 +38,11 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 }),
                 response: {
                     200: Type.Object({}, { description: "Login success" }),
-                    403: Type.Object(
-                        {
-                            statusCode: Type.Integer({ type: "number" }),
-                            error: Type.String(),
-                            message: Type.String(),
-                        },
-                        { description: "Invalid password or email" }
+                    401: Type.Object(
+                        Type.Ref<typeof AuthenticateResponseSchema>(
+                            "AuthenticateResponseSchema",
+                            { description: "Invalid password or email" }
+                        )
                     ),
                 },
             } as const,

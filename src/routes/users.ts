@@ -24,7 +24,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                         name: Type.String(),
                         surname: Type.String(),
                     }),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                 },
@@ -60,7 +60,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                         surname: Type.String(),
                         email: Type.String(),
                     }),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                 },
@@ -89,7 +89,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 }),
                 response: {
                     200: Type.Object({}),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                     404: Type.Ref<typeof SensibleErrorSchema>(
@@ -165,7 +165,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                             sentAt: Type.String({ format: "date-time" }),
                         })
                     ),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                 },
@@ -209,7 +209,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 }),
                 response: {
                     200: Type.Object({}),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                     404: Type.Ref<typeof SensibleErrorSchema>(
@@ -267,7 +267,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 }),
                 response: {
                     200: Type.Object({}),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                     404: Type.Ref<typeof SensibleErrorSchema>(

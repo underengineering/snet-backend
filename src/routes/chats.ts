@@ -35,7 +35,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                                 "Tried to add a participant not in friend list",
                         }
                     ),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                     404: Type.Ref<typeof SensibleErrorSchema>(
@@ -113,7 +113,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 }),
                 response: {
                     200: Type.Object({}, { description: "Success" }),
-                    403: Type.Ref<typeof AuthenticateResponseSchema>(
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                     404: Type.Ref<typeof SensibleErrorSchema>(
