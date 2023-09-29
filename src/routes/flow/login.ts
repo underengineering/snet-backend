@@ -38,11 +38,9 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 }),
                 response: {
                     200: Type.Object({}, { description: "Login success" }),
-                    401: Type.Object(
-                        Type.Ref<typeof AuthenticateResponseSchema>(
-                            "AuthenticateResponseSchema",
-                            { description: "Invalid password or email" }
-                        )
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
+                        "AuthenticateResponseSchema",
+                        { description: "Invalid password or email" }
                     ),
                 },
             } as const,

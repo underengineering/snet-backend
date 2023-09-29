@@ -1,11 +1,15 @@
 import { FastifyPluginCallback } from "fastify";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
-import { Type } from "@sinclair/typebox";
+import { Static, Type } from "@sinclair/typebox";
 
 import { FriendRequest, User } from "../entity/User";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
-import { SensibleErrorSchema } from "../plugins/schemas";
+import {
+    PrivateUserSchema,
+    PublicUserSchema,
+    SensibleErrorSchema,
+} from "../plugins/schemas";
 
 const route: FastifyPluginCallback = (app, _opts, done) => {
     app.withTypeProvider<TypeBoxTypeProvider>().get(
@@ -17,13 +21,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                     id: Type.String({ format: "uuid" }),
                 }),
                 response: {
-                    200: Type.Object({
-                        id: Type.String({ format: "uuid" }),
-                        registeredAt: Type.String({ format: "date-time" }),
-                        lastOnlineAt: Type.String({ format: "date-time" }),
-                        name: Type.String(),
-                        surname: Type.String(),
-                    }),
+                    200: Type.Ref<typeof PublicUserSchema>("PublicUserSchema"),
                     401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
@@ -39,11 +37,9 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
             if (user === null) return res.notFound("User not found");
 
             return {
-                id: user.id,
+                ...user,
                 registeredAt: user.registeredAt.toISOString(),
                 lastOnlineAt: user.lastOnlineAt.toISOString(),
-                name: user.name,
-                surname: user.surname,
             };
         }
     );
@@ -53,13 +49,9 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 response: {
-                    200: Type.Object({
-                        id: Type.String({ format: "uuid" }),
-                        registeredAt: Type.String({ format: "date-time" }),
-                        name: Type.String(),
-                        surname: Type.String(),
-                        email: Type.String(),
-                    }),
+                    200: Type.Ref<typeof PrivateUserSchema>(
+                        "PrivateUserSchema"
+                    ),
                     401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
@@ -67,15 +59,8 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
             },
             onRequest: app.authenticate,
         },
-        async (req) => {
-            const user = req.userEntity;
-            return {
-                id: user.id,
-                registeredAt: user.registeredAt,
-                name: user.name,
-                surname: user.surname,
-                email: user.email,
-            };
+        (req) => {
+            return req.userEntity;
         }
     );
 
@@ -157,11 +142,9 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                     200: Type.Array(
                         Type.Object({
                             id: Type.String({ format: "uuid" }),
-                            sender: Type.Object({
-                                id: Type.String({ format: "uuid" }),
-                                name: Type.String(),
-                                surname: Type.String(),
-                            }),
+                            sender: Type.Ref<typeof PublicUserSchema>(
+                                "PublicUserSchema"
+                            ),
                             sentAt: Type.String({ format: "date-time" }),
                         })
                     ),
@@ -192,7 +175,13 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
             return user.receivedFriendRequests.map((friendRequest) => {
                 return {
                     id: friendRequest.id,
-                    sender: friendRequest.sender,
+                    sender: {
+                        ...friendRequest.sender,
+                        registeredAt:
+                            friendRequest.sender.registeredAt.toISOString(),
+                        lastOnlineAt:
+                            friendRequest.sender.lastOnlineAt.toISOString(),
+                    },
                     sentAt: friendRequest.sentAt.toISOString(),
                 };
             });
@@ -303,6 +292,82 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
             await friendRequestRepo.save(friendRequest);
 
             return {};
+        }
+    );
+
+    const meFriendListResp = Type.Array(
+        Type.Object({
+            id: Type.String({ format: "uuid" }),
+            user: Type.Ref<typeof PublicUserSchema>("PublicUserSchema"),
+        })
+    );
+
+    app.withTypeProvider<TypeBoxTypeProvider>().get(
+        "/me/friendList",
+        {
+            schema: {
+                description: "List friends",
+                response: {
+                    200: meFriendListResp,
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
+                        "AuthenticateResponseSchema"
+                    ),
+                },
+            },
+            onRequest: (req, res) => app.authenticate(req, res),
+        },
+        async (req) => {
+            const friendRequestRepo =
+                app.dataSource.getRepository(FriendRequest);
+
+            const [sentFriendRequests, receivedFriendRequests] =
+                await Promise.all([
+                    friendRequestRepo.find({
+                        relations: { sender: true },
+                        where: {
+                            sender: { id: req.userId },
+                            isAccepted: true,
+                            isRemoved: false,
+                        },
+                    }),
+                    friendRequestRepo.find({
+                        relations: { receiver: true },
+                        where: {
+                            receiver: { id: req.userId },
+                            isAccepted: true,
+                            isRemoved: false,
+                        },
+                    }),
+                ]);
+
+            const friendRequests: Static<typeof meFriendListResp> = [];
+            for (const friendRequest of sentFriendRequests) {
+                friendRequests.push({
+                    id: friendRequest.id,
+                    user: {
+                        ...friendRequest.receiver,
+                        registeredAt:
+                            friendRequest.receiver.registeredAt.toISOString(),
+                        lastOnlineAt:
+                            friendRequest.receiver.lastOnlineAt.toISOString(),
+                    },
+                });
+            }
+
+            for (const friendRequest of receivedFriendRequests) {
+                friendRequests.push({
+                    id: friendRequest.id,
+                    user: {
+                        ...friendRequest.sender,
+                        registeredAt:
+                            friendRequest.sender.registeredAt.toISOString(),
+                        lastOnlineAt:
+                            friendRequest.sender.lastOnlineAt.toISOString(),
+                    },
+                });
+            }
+
+            return friendRequests;
         }
     );
 
