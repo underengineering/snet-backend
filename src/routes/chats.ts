@@ -8,7 +8,7 @@ import { Chat } from "../entity/Chat";
 import { Message } from "../entity/Message";
 import { FriendRequest, User } from "../entity/User";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
-import { SensibleErrorSchema } from "../plugins/schemas";
+import { PublicUserSchema, SensibleErrorSchema } from "../plugins/schemas";
 
 const route: FastifyPluginCallback = (app, _opts, done) => {
     app.withTypeProvider<TypeBoxTypeProvider>().post(
@@ -159,6 +159,67 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 .add(message);
 
             return {};
+        }
+    );
+
+    app.withTypeProvider<TypeBoxTypeProvider>().get(
+        "/",
+        {
+            schema: {
+                description: "Get chats",
+                response: {
+                    200: Type.Array(
+                        Type.Object(
+                            {
+                                id: Type.String({ format: "uuid" }),
+                                createdAt: Type.String({ format: "date-time" }),
+                                participants: Type.Array(
+                                    Type.Ref<typeof PublicUserSchema>(
+                                        "PublicUserSchema"
+                                    )
+                                ),
+                            },
+                            { description: "Success" }
+                        )
+                    ),
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
+                        "AuthenticateResponseSchema"
+                    ),
+                },
+            } as const,
+            onRequest: (req, res) => app.authenticate(req, res),
+        },
+        async (req) => {
+            const chatRepo = app.dataSource.getRepository(Chat);
+            const foundChats = await chatRepo.find({
+                relations: { participants: true },
+                // TODO: Make it work with JOIN
+                /*
+                 * select * from chat
+                 *  inner join "chat_participants_user"
+                 *    on "chat_participants_user"."chatId" = 'e828b068-2501-461d-91de-7f1678268671'
+                 *  where "chat_participants_user"."userId" = '28d7ec20-8293-4bf7-b9a4-a6983c4487e6';
+                 */
+                relationLoadStrategy: "query",
+                where: {
+                    participants: { id: req.userId },
+                    isDeleted: false,
+                },
+            });
+
+            return foundChats.map((chat) => {
+                return {
+                    ...chat,
+                    createdAt: chat.createdAt.toISOString(),
+                    participants: chat.participants.map((user) => {
+                        return {
+                            ...user,
+                            registeredAt: user.registeredAt.toISOString(),
+                            lastOnlineAt: user.lastOnlineAt.toISOString(),
+                        };
+                    }),
+                };
+            });
         }
     );
 
