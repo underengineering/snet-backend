@@ -93,7 +93,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
 
             const chatRepo = app.dataSource.getRepository(Chat);
             const newChat = chatRepo.create({
-                participants: participantEntities,
+                participants: [...participantEntities, req.userEntity],
             });
 
             await chatRepo.save(newChat);
