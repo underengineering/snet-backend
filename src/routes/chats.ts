@@ -12,7 +12,7 @@ import { SensibleErrorSchema } from "../plugins/schemas";
 
 const route: FastifyPluginCallback = (app, _opts, done) => {
     app.withTypeProvider<TypeBoxTypeProvider>().post(
-        "/chats",
+        "/",
         {
             schema: {
                 description: "Create a new chat",
@@ -103,7 +103,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
     );
 
     app.withTypeProvider<TypeBoxTypeProvider>().put(
-        "/chats",
+        "/",
         {
             schema: {
                 description: "Post a message",
