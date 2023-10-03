@@ -51,7 +51,7 @@ export const MessageSchema = Type.Object(
     {
         id: Type.Integer(),
         createdAt: Type.String({ format: "date-time" }),
-        author: Type.String({ format: "uuid" }),
+        author: Type.Ref<typeof PublicUserSchema>("PublicUserSchema"),
         content: Type.String(),
         acknowledged: Type.Boolean(),
     },

@@ -8,7 +8,12 @@ import { Chat } from "../entity/Chat";
 import { Message } from "../entity/Message";
 import { FriendRequest, User } from "../entity/User";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
-import { PublicUserSchema, SensibleErrorSchema } from "../plugins/schemas";
+import {
+    ChatSchema,
+    MessageSchema,
+    PublicUserSchema,
+    SensibleErrorSchema,
+} from "../plugins/schemas";
 
 const route: FastifyPluginCallback = (app, _opts, done) => {
     app.withTypeProvider<TypeBoxTypeProvider>().post(
@@ -169,18 +174,16 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 description: "Get chats",
                 response: {
                     200: Type.Array(
-                        Type.Object(
-                            {
-                                id: Type.String({ format: "uuid" }),
-                                createdAt: Type.String({ format: "date-time" }),
-                                participants: Type.Array(
-                                    Type.Ref<typeof PublicUserSchema>(
-                                        "PublicUserSchema"
+                        Type.Composite([
+                            ChatSchema,
+                            Type.Object({
+                                messages: Type.Array(
+                                    Type.Ref<typeof MessageSchema>(
+                                        "MessageSchema"
                                     )
                                 ),
-                            },
-                            { description: "Success" }
-                        )
+                            }),
+                        ])
                     ),
                     401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
