@@ -194,23 +194,41 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         },
         async (req) => {
             const chatRepo = app.dataSource.getRepository(Chat);
-            const foundChats = await chatRepo.find({
-                relations: { participants: true },
-                // TODO: Make it work with JOIN
-                /*
-                 * select * from chat
-                 *  inner join "chat_participants_user"
-                 *    on "chat_participants_user"."chatId" = 'e828b068-2501-461d-91de-7f1678268671'
-                 *  where "chat_participants_user"."userId" = '28d7ec20-8293-4bf7-b9a4-a6983c4487e6';
-                 */
-                relationLoadStrategy: "query",
-                where: {
-                    participants: { id: req.userId },
-                    isDeleted: false,
-                },
-            });
+            const foundChats = await chatRepo
+                .createQueryBuilder("chats")
+                // Load all participants
+                .leftJoinAndSelect(
+                    "chat_participants_user",
+                    "participants_many_to_many",
+                    '"participants_many_to_many"."chatId" = chats.id'
+                )
+                .leftJoinAndSelect("chats.participants", "participants")
+                .where('"participants_many_to_many"."userId" = :id', {
+                    id: req.userId,
+                })
+                .getMany();
 
-            return foundChats.map((chat) => {
+            const messageRepo = app.dataSource.getRepository(Message);
+            const foundChatsWithMessage = await Promise.all(
+                foundChats.map<Promise<Chat>>((chat) =>
+                    messageRepo
+                        .find({
+                            relations: { author: true },
+                            where: { chat: { id: chat.id } },
+                            order: { createdAt: "desc" },
+                            take: 1,
+                        })
+                        .then((messages) => {
+                            // Add last message
+                            return {
+                                ...chat,
+                                messages,
+                            };
+                        })
+                )
+            );
+
+            return foundChatsWithMessage.map((chat) => {
                 return {
                     ...chat,
                     createdAt: chat.createdAt.toISOString(),
@@ -219,6 +237,19 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                             ...user,
                             registeredAt: user.registeredAt.toISOString(),
                             lastOnlineAt: user.lastOnlineAt.toISOString(),
+                        };
+                    }),
+                    messages: chat.messages.map((message) => {
+                        return {
+                            ...message,
+                            author: {
+                                ...message.author,
+                                registeredAt:
+                                    message.author.registeredAt.toISOString(),
+                                lastOnlineAt:
+                                    message.author.lastOnlineAt.toISOString(),
+                            },
+                            createdAt: message.createdAt.toISOString(),
                         };
                     }),
                 };
