@@ -19,10 +19,10 @@ export class Message {
     @CreateDateColumn()
     createdAt: Date;
 
-    @ManyToOne(() => User, (user) => user.messages)
+    @ManyToOne(() => User, (user) => user.messages, { nullable: false })
     author: User;
 
-    @ManyToOne(() => Chat, (chat) => chat.messages)
+    @ManyToOne(() => Chat, (chat) => chat.messages, { nullable: false })
     chat: Chat;
 
     @Column({ length: 2000, nullable: true, default: null })

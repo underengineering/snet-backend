@@ -18,10 +18,14 @@ export class FriendRequest {
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
-    @ManyToOne(() => User, (user) => user.sentFriendRequests)
+    @ManyToOne(() => User, (user) => user.sentFriendRequests, {
+        nullable: false,
+    })
     sender: Relation<User>;
 
-    @ManyToOne(() => User, (user) => user.receivedFriendRequests)
+    @ManyToOne(() => User, (user) => user.receivedFriendRequests, {
+        nullable: false,
+    })
     receiver: Relation<User>;
 
     @CreateDateColumn()
