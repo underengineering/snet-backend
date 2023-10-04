@@ -1,5 +1,5 @@
 import { FastifyPluginCallback } from "fastify";
-import { In } from "typeorm";
+import { In, LessThan } from "typeorm";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
@@ -254,6 +254,55 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                     }),
                 };
             });
+        }
+    );
+
+    app.withTypeProvider<TypeBoxTypeProvider>().get(
+        "/messages",
+        {
+            schema: {
+                description: "Paginate chat messages",
+                querystring: Type.Object({
+                    id: Type.String({ format: "uuid" }),
+                    beforeId: Type.Optional(Type.Integer({ minimum: 0 })),
+                    limit: Type.Optional(
+                        Type.Integer({ minimum: 0, maximum: 30 })
+                    ),
+                }),
+                response: {
+                    200: Type.Array(
+                        Type.Ref<typeof MessageSchema>("MessageSchema")
+                    ),
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
+                        "AuthenticateResponseSchema"
+                    ),
+                },
+            } as const,
+            onRequest: (req, res) => app.authenticate(req, res),
+        },
+        async (req) => {
+            const { id, beforeId, limit } = req.query;
+
+            const messageRepo = app.dataSource.getRepository(Message);
+            const messages = await messageRepo.find({
+                relations: { author: true },
+                where: {
+                    id: beforeId !== undefined ? LessThan(beforeId) : undefined,
+                    chat: { id },
+                },
+                order: { id: "asc" },
+                take: limit ?? 30,
+            });
+
+            return messages.map((message) => ({
+                ...message,
+                createdAt: message.createdAt.toISOString(),
+                author: {
+                    ...message.author,
+                    registeredAt: message.author.registeredAt.toISOString(),
+                    lastOnlineAt: message.author.lastOnlineAt.toISOString(),
+                },
+            }));
         }
     );
 
