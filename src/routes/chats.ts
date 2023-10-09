@@ -107,66 +107,6 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().put(
-        "/",
-        {
-            schema: {
-                description: "Post a message",
-                body: Type.Object({
-                    id: Type.String({ format: "uuid" }),
-                    content: Type.String({ maxLength: 2000 }),
-                }),
-                response: {
-                    200: Type.Object({}, { description: "Success" }),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                    404: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        { description: "Chat not found" }
-                    ),
-                },
-            } as const,
-            onRequest: (req, res) => app.authenticate(req, res),
-        },
-        async (req, res) => {
-            const { id, content } = req.body;
-
-            const chatRepo = app.dataSource.getRepository(Chat);
-            const foundChat = await chatRepo.findOne({
-                relations: {
-                    messages: true,
-                },
-                where: {
-                    id,
-                },
-            });
-
-            if (foundChat === null) return res.notFound("Chat not found");
-
-            const userRepo = app.dataSource.getRepository(User);
-            const messageRepo = app.dataSource.getRepository(Message);
-            const message = messageRepo.create({
-                content,
-            });
-
-            await messageRepo.save(message);
-            await chatRepo
-                .createQueryBuilder()
-                .relation(Chat, "messages")
-                .of(foundChat)
-                .add(message);
-
-            await userRepo
-                .createQueryBuilder()
-                .relation(User, "messages")
-                .of(req.userEntity)
-                .add(message);
-
-            return {};
-        }
-    );
-
     app.withTypeProvider<TypeBoxTypeProvider>().get(
         "/",
         {
@@ -254,6 +194,66 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                     }),
                 };
             });
+        }
+    );
+
+    app.withTypeProvider<TypeBoxTypeProvider>().put(
+        "/messages",
+        {
+            schema: {
+                description: "Post a message",
+                body: Type.Object({
+                    id: Type.String({ format: "uuid" }),
+                    content: Type.String({ maxLength: 2000 }),
+                }),
+                response: {
+                    200: Type.Object({}, { description: "Success" }),
+                    401: Type.Ref<typeof AuthenticateResponseSchema>(
+                        "AuthenticateResponseSchema"
+                    ),
+                    404: Type.Ref<typeof SensibleErrorSchema>(
+                        "SensibleErrorSchema",
+                        { description: "Chat not found" }
+                    ),
+                },
+            } as const,
+            onRequest: (req, res) => app.authenticate(req, res),
+        },
+        async (req, res) => {
+            const { id, content } = req.body;
+
+            const chatRepo = app.dataSource.getRepository(Chat);
+            const foundChat = await chatRepo.findOne({
+                relations: {
+                    messages: true,
+                },
+                where: {
+                    id,
+                },
+            });
+
+            if (foundChat === null) return res.notFound("Chat not found");
+
+            const userRepo = app.dataSource.getRepository(User);
+            const messageRepo = app.dataSource.getRepository(Message);
+            const message = messageRepo.create({
+                content,
+            });
+
+            await messageRepo.save(message);
+            await chatRepo
+                .createQueryBuilder()
+                .relation(Chat, "messages")
+                .of(foundChat)
+                .add(message);
+
+            await userRepo
+                .createQueryBuilder()
+                .relation(User, "messages")
+                .of(req.userEntity)
+                .add(message);
+
+            return {};
         }
     );
 
