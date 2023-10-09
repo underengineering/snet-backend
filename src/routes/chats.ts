@@ -234,24 +234,14 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
 
             if (foundChat === null) return res.notFound("Chat not found");
 
-            const userRepo = app.dataSource.getRepository(User);
             const messageRepo = app.dataSource.getRepository(Message);
             const message = messageRepo.create({
+                author: req.userEntity,
+                chat: { id },
                 content,
             });
 
             await messageRepo.save(message);
-            await chatRepo
-                .createQueryBuilder()
-                .relation(Chat, "messages")
-                .of(foundChat)
-                .add(message);
-
-            await userRepo
-                .createQueryBuilder()
-                .relation(User, "messages")
-                .of(req.userEntity)
-                .add(message);
 
             return {};
         }
