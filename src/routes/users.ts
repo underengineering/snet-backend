@@ -323,7 +323,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
             const [sentFriendRequests, receivedFriendRequests] =
                 await Promise.all([
                     friendRequestRepo.find({
-                        relations: { sender: true },
+                        relations: { receiver: true },
                         where: {
                             sender: { id: req.userId },
                             isAccepted: true,
@@ -331,7 +331,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                         },
                     }),
                     friendRequestRepo.find({
-                        relations: { receiver: true },
+                        relations: { sender: true },
                         where: {
                             receiver: { id: req.userId },
                             isAccepted: true,
