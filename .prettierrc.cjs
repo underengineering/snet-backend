@@ -5,7 +5,7 @@ const config = {
 
     plugins: ["@trivago/prettier-plugin-sort-imports"],
 
-    importOrder: ["^@(.*)$", "^[./]"],
+    importOrder: ["^node:.*$", "^@(.*)$", "^[./]"],
     importOrderParserPlugins: ["typescript", "decorators-legacy"],
     importOrderSeparation: true,
     importOrderSortSpecifiers: true,

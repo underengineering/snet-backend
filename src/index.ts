@@ -4,25 +4,27 @@ import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
 import fastifyEnv from "@fastify/env";
 import fastifyJwt from "@fastify/jwt";
+import { ajvFilePlugin, fastifyMultipart } from "@fastify/multipart";
 import fastifySensible from "@fastify/sensible";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 
 import { Chat } from "./entity/Chat";
+import { File } from "./entity/File";
 import { Message } from "./entity/Message";
 import { FriendRequest, User } from "./entity/User";
 import envSchema from "./env-schema";
 import authenticatePlugin from "./plugins/authenticate";
 import schemasPlugin from "./plugins/schemas";
 import typeOrmPlugin from "./plugins/typeorm";
-import chatsRoute from "./routes/chats";
-import loginRoute from "./routes/flow/login";
-import registerRoute from "./routes/flow/register";
-import usersRoute from "./routes/users";
+import * as routes from "./routes";
 
 async function main() {
     const app: FastifyInstance = fastify({
         logger: true,
+        ajv: {
+            plugins: [ajvFilePlugin],
+        },
     });
 
     // Register plugins
@@ -35,6 +37,11 @@ async function main() {
 
     app.register(fastifySwaggerUi, {
         routePrefix: "/docs",
+    });
+
+    app.register(fastifyMultipart, {
+        // attachFieldsToBody: true,
+        limits: { files: 1 },
     });
 
     app.register(fastifyCors, {
@@ -64,14 +71,15 @@ async function main() {
         username: app.config.DB_USERNAME,
         password: app.config.DB_PASSWORD,
         database: app.config.DB_DATABASE,
-        entities: [User, Message, Chat, FriendRequest],
+        entities: [User, Message, Chat, FriendRequest, File],
     });
 
     // Register routes
-    app.register(chatsRoute, { prefix: "/chats" });
-    app.register(loginRoute, { prefix: "/flow" });
-    app.register(registerRoute, { prefix: "/flow" });
-    app.register(usersRoute, { prefix: "/users" });
+    app.register(routes.chats, { prefix: "/chats" });
+    app.register(routes.login, { prefix: "/flow" });
+    app.register(routes.register, { prefix: "/flow" });
+    app.register(routes.users, { prefix: "/users" });
+    app.register(routes.files, { prefix: "/files" });
 
     // Start the app
     try {
