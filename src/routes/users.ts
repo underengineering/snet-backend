@@ -12,11 +12,14 @@ import {
 } from "../plugins/schemas";
 
 const route: FastifyPluginCallback = (app, _opts, done) => {
+    const TAGS = ["users"];
+
     app.withTypeProvider<TypeBoxTypeProvider>().get(
         "/",
         {
             schema: {
                 description: "Get user info",
+                tags: TAGS,
                 querystring: Type.Object({
                     id: Type.String({ format: "uuid" }),
                 }),
@@ -48,6 +51,8 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         "/me",
         {
             schema: {
+                description: "Get info about current user",
+                tags: TAGS,
                 response: {
                     200: Type.Ref<typeof PrivateUserSchema>(
                         "PrivateUserSchema"
@@ -69,6 +74,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "Send friend request",
+                tags: TAGS,
                 body: Type.Object({
                     id: Type.String({ format: "uuid" }),
                 }),
@@ -138,6 +144,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "List pending friend requests",
+                tags: TAGS,
                 response: {
                     200: Type.Array(
                         Type.Object({
@@ -193,6 +200,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "Accept a friend request",
+                tags: TAGS,
                 body: Type.Object({
                     id: Type.String({ format: "uuid" }),
                 }),
@@ -251,6 +259,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "Remove a friend request",
+                tags: TAGS,
                 body: Type.Object({
                     id: Type.String({ format: "uuid" }),
                 }),
@@ -307,6 +316,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "List friends",
+                tags: TAGS,
                 response: {
                     200: meFriendListResp,
                     401: Type.Ref<typeof AuthenticateResponseSchema>(

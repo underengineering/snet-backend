@@ -16,11 +16,13 @@ import {
 } from "../plugins/schemas";
 
 const route: FastifyPluginCallback = (app, _opts, done) => {
+    const TAGS = ["chats"];
     app.withTypeProvider<TypeBoxTypeProvider>().post(
         "/",
         {
             schema: {
                 description: "Create a new chat",
+                tags: TAGS,
                 body: Type.Object({
                     participants: Type.Array(Type.String({ format: "uuid" }), {
                         minItems: 1,
@@ -112,6 +114,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "Get chats",
+                tags: TAGS,
                 response: {
                     200: Type.Array(
                         Type.Composite([
@@ -202,6 +205,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "Post a message",
+                tags: [...TAGS, "messages"],
                 body: Type.Object({
                     id: Type.String({ format: "uuid" }),
                     content: Type.String({ maxLength: 2000 }),
@@ -252,6 +256,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         {
             schema: {
                 description: "Paginate chat messages",
+                tags: [...TAGS, "messages"],
                 querystring: Type.Object({
                     id: Type.String({ format: "uuid" }),
                     beforeId: Type.Optional(Type.Integer({ minimum: 0 })),

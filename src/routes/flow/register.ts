@@ -1,4 +1,5 @@
 import { FastifyPluginCallback } from "fastify";
+
 import { createHash, randomBytes } from "node:crypto";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
@@ -11,6 +12,8 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         "/register",
         {
             schema: {
+                description: "Register",
+                tags: ["flow"],
                 body: Type.Object({
                     name: Type.String({
                         minLength: 2,

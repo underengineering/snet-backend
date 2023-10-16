@@ -1,4 +1,5 @@
 import { FastifyPluginCallback } from "fastify";
+
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { CookieSerializeOptions } from "@fastify/cookie";
@@ -25,6 +26,8 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         "/login",
         {
             schema: {
+                description: "Log in",
+                tags: ["flow"],
                 body: Type.Object({
                     email: Type.String({
                         format: "email",
