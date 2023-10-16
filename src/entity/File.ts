@@ -5,6 +5,7 @@ import {
     Entity,
     ManyToOne,
     PrimaryGeneratedColumn,
+    Relation,
 } from "typeorm";
 
 import { User } from "./User";
@@ -20,7 +21,7 @@ export class File {
     id: number;
 
     @ManyToOne(() => User, { nullable: false })
-    uploader: User;
+    uploader: Relation<User>;
 
     @CreateDateColumn()
     uploadedAt: Date;

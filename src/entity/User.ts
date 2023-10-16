@@ -9,11 +9,13 @@ import {
     Relation,
 } from "typeorm";
 
+import { File } from "./File";
 import { Message } from "./Message";
 
 @Entity()
 @Check("CHK_sentAt", `"sentAt" <= NOW()`)
 @Check("CHK_acceptedAtGreaterThanSentAt", `"acceptedAt" >= "sentAt"`)
+@Check("CHK_removedGreaterThanAcceptedAt", `"removedAt" >= "acceptedAt"`)
 export class FriendRequest {
     @PrimaryGeneratedColumn("uuid")
     id: string;
@@ -34,14 +36,8 @@ export class FriendRequest {
     @Column({ default: null, nullable: true })
     acceptedAt: Date;
 
-    @Column({ default: false })
-    isAccepted: boolean;
-
     @Column({ default: null, nullable: true })
     removedAt: Date;
-
-    @Column({ default: false })
-    isRemoved: boolean;
 }
 
 @Entity()
@@ -66,6 +62,9 @@ export class User {
     @CreateDateColumn()
     lastOnlineAt: Date;
 
+    @Column({ default: null, nullable: true })
+    deletedAt: Date;
+
     @Column({ length: 32 })
     name: string;
 
@@ -74,6 +73,9 @@ export class User {
 
     @Column({ length: 320, unique: true })
     email: string;
+
+    @ManyToOne(() => File)
+    avatar: Relation<File>;
 
     @Column({ length: 64 })
     passwordSha256: string;
@@ -89,10 +91,4 @@ export class User {
 
     @OneToMany(() => FriendRequest, (frientRequest) => frientRequest.receiver)
     receivedFriendRequests: FriendRequest[];
-
-    @CreateDateColumn({ default: null, nullable: true })
-    deletedAt: Date;
-
-    @Column({ default: false })
-    isDeleted: boolean;
 }

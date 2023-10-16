@@ -19,6 +19,9 @@ export class Message {
     @CreateDateColumn()
     createdAt: Date;
 
+    @Column({ default: null, nullable: true })
+    deletedAt: Date;
+
     @ManyToOne(() => User, (user) => user.messages, { nullable: false })
     author: User;
 

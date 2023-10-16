@@ -21,6 +21,9 @@ export class Chat {
     @CreateDateColumn()
     createdAt: Date;
 
+    @Column({ default: null, nullable: true })
+    deletedAt: Date;
+
     @ManyToMany(() => User)
     @JoinTable()
     participants: User[];
@@ -28,10 +31,4 @@ export class Chat {
     @OneToMany(() => Message, (message) => message.chat)
     @JoinTable()
     messages: Message[];
-
-    @Column({ default: null, nullable: true })
-    deletedAt: Date;
-
-    @Column({ default: false })
-    isDeleted: boolean;
 }

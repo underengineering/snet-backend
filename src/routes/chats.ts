@@ -1,5 +1,5 @@
 import { FastifyPluginCallback } from "fastify";
-import { In, LessThan } from "typeorm";
+import { In, IsNull, LessThan, Not } from "typeorm";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
@@ -72,12 +72,12 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                     {
                         sender: { id: req.userId },
                         receiver: { id: In(participants) },
-                        isAccepted: true,
+                        acceptedAt: Not(IsNull()),
                     },
                     {
                         sender: { id: In(participants) },
                         receiver: { id: req.userId },
-                        isAccepted: true,
+                        acceptedAt: Not(IsNull()),
                     },
                 ],
             });
@@ -180,6 +180,10 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                             ...user,
                             registeredAt: user.registeredAt.toISOString(),
                             lastOnlineAt: user.lastOnlineAt.toISOString(),
+                            avatar:
+                                user.avatar === null
+                                    ? undefined
+                                    : user.avatar.hashSha256,
                         };
                     }),
                     messages: chat.messages.map((message) => {
@@ -191,6 +195,10 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                                     message.author.registeredAt.toISOString(),
                                 lastOnlineAt:
                                     message.author.lastOnlineAt.toISOString(),
+                                avatar:
+                                    message.author.avatar === null
+                                        ? undefined
+                                        : message.author.avatar.hashSha256,
                             },
                             createdAt: message.createdAt.toISOString(),
                         };
@@ -296,6 +304,10 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                     ...message.author,
                     registeredAt: message.author.registeredAt.toISOString(),
                     lastOnlineAt: message.author.lastOnlineAt.toISOString(),
+                    avatar:
+                        message.author.avatar === null
+                            ? undefined
+                            : message.author.avatar.hashSha256,
                 },
             }));
         }

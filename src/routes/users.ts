@@ -1,4 +1,5 @@
 import { FastifyPluginCallback } from "fastify";
+import { IsNull, Not } from "typeorm";
 
 import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Static, Type } from "@sinclair/typebox";
@@ -43,6 +44,8 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 ...user,
                 registeredAt: user.registeredAt.toISOString(),
                 lastOnlineAt: user.lastOnlineAt.toISOString(),
+                avatar:
+                    user.avatar === null ? undefined : user.avatar.hashSha256,
             };
         }
     );
@@ -114,11 +117,11 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 receiver: {
                     id: user.id,
                 },
-                isRemoved: false,
+                removedAt: Not(IsNull()),
             });
 
             if (friendRequestCount !== null) {
-                if (friendRequestCount.isAccepted)
+                if (friendRequestCount.acceptedAt !== null)
                     return res.conflict(
                         "This user is already in the friend list"
                     );
@@ -171,8 +174,8 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 where: {
                     id: req.userId,
                     receivedFriendRequests: {
-                        isAccepted: false,
-                        isRemoved: false,
+                        acceptedAt: Not(IsNull()),
+                        removedAt: Not(IsNull()),
                     },
                 },
             });
@@ -188,6 +191,10 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                             friendRequest.sender.registeredAt.toISOString(),
                         lastOnlineAt:
                             friendRequest.sender.lastOnlineAt.toISOString(),
+                        avatar:
+                            user.avatar === null
+                                ? undefined
+                                : user.avatar.hashSha256,
                     },
                     sentAt: friendRequest.sentAt.toISOString(),
                 };
@@ -239,14 +246,13 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
             if (friendRequest === null)
                 return res.notFound("Friend request not found");
 
-            if (friendRequest.isRemoved)
+            if (friendRequest.removedAt !== null)
                 return res.notFound("Friend request removed");
 
-            if (friendRequest.isAccepted)
+            if (friendRequest.acceptedAt !== null)
                 return res.conflict("This friend request is already accepted");
 
             friendRequest.acceptedAt = new Date();
-            friendRequest.isAccepted = true;
 
             await friendRequestRepo.save(friendRequest);
 
@@ -292,11 +298,10 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
             if (friendRequest === null)
                 return res.notFound("Friend request not found");
 
-            if (friendRequest.isRemoved)
-                return res.conflict("This friend request is already accepted");
+            if (friendRequest.removedAt !== null)
+                return res.conflict("This friend request is already removed");
 
             friendRequest.removedAt = new Date();
-            friendRequest.isRemoved = true;
 
             await friendRequestRepo.save(friendRequest);
 
@@ -336,16 +341,16 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                         relations: { receiver: true },
                         where: {
                             sender: { id: req.userId },
-                            isAccepted: true,
-                            isRemoved: false,
+                            acceptedAt: Not(IsNull()),
+                            removedAt: IsNull(),
                         },
                     }),
                     friendRequestRepo.find({
                         relations: { sender: true },
                         where: {
                             receiver: { id: req.userId },
-                            isAccepted: true,
-                            isRemoved: false,
+                            acceptedAt: Not(IsNull()),
+                            removedAt: IsNull(),
                         },
                     }),
                 ]);
@@ -360,6 +365,10 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                             friendRequest.receiver.registeredAt.toISOString(),
                         lastOnlineAt:
                             friendRequest.receiver.lastOnlineAt.toISOString(),
+                        avatar:
+                            friendRequest.receiver.avatar === null
+                                ? undefined
+                                : friendRequest.receiver.avatar.hashSha256,
                     },
                 });
             }
@@ -373,6 +382,10 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                             friendRequest.sender.registeredAt.toISOString(),
                         lastOnlineAt:
                             friendRequest.sender.lastOnlineAt.toISOString(),
+                        avatar:
+                            friendRequest.sender.avatar === null
+                                ? undefined
+                                : friendRequest.sender.avatar.hashSha256,
                     },
                 });
             }

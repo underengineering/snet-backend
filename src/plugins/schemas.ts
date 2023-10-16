@@ -21,6 +21,7 @@ export const PublicUserSchema = Type.Object(
         lastOnlineAt: Type.String({ format: "date-time" }),
         name: Type.String(),
         surname: Type.String(),
+        avatar: Type.Optional(Type.String({ pattern: "[a-f0-9]{64}" })),
     },
     { $id: "PublicUserSchema" }
 );
@@ -32,6 +33,7 @@ export const PrivateUserSchema = Type.Object(
         name: Type.String(),
         surname: Type.String(),
         email: Type.String({ format: "email" }),
+        avatar: Type.Optional(Type.String({ pattern: "[a-f0-9]{64}" })),
     },
     { $id: "PrivateUserSchema" }
 );

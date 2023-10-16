@@ -49,7 +49,8 @@ const authenticatePlugin = fastifyPlugin(async function (app) {
             const userRepo = app.dataSource.getRepository(User);
             const user = await userRepo.findOneBy({ id: body.id });
             if (user === null) return res.unauthorized("User not found");
-            if (user.isDeleted) return res.unauthorized("User deleted");
+            if (user.deletedAt !== null)
+                return res.unauthorized("This user is deleted");
 
             req.userId = body.id;
             req.userEntity = user;
