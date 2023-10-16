@@ -8,16 +8,20 @@ import fsAsync from "node:fs/promises";
 import path from "node:path";
 import streamPromises from "node:stream/promises";
 
-import { ajvFilePlugin } from "@fastify/multipart";
-import { Type, TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
+import { Type } from "@fastify/type-provider-typebox";
 
 import { File } from "../entity/File";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
 import { SensibleErrorSchema } from "../plugins/schemas";
+import { FastifyInstanceTypeBox } from "../utils";
 
-const route: FastifyPluginCallback = (app, _opts, done) => {
+const route: FastifyPluginCallback = (
+    app: FastifyInstanceTypeBox,
+    _opts,
+    done
+) => {
     const TAGS = ["files"];
-    app.withTypeProvider<TypeBoxTypeProvider>().get(
+    app.get(
         "/:hashSha256",
         {
             schema: {
@@ -57,7 +61,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().post(
+    app.post(
         "/",
         {
             schema: {

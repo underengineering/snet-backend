@@ -6,9 +6,14 @@ import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 
 import { User } from "../../entity/User";
+import { FastifyInstanceTypeBox } from "../../utils";
 
-const route: FastifyPluginCallback = (app, _opts, done) => {
-    app.withTypeProvider<TypeBoxTypeProvider>().post(
+const route: FastifyPluginCallback = (
+    app: FastifyInstanceTypeBox,
+    _opts,
+    done
+) => {
+    app.post(
         "/register",
         {
             schema: {

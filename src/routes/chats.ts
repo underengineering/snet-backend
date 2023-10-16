@@ -11,13 +11,17 @@ import { AuthenticateResponseSchema } from "../plugins/authenticate";
 import {
     ChatSchema,
     MessageSchema,
-    PublicUserSchema,
     SensibleErrorSchema,
 } from "../plugins/schemas";
+import { FastifyInstanceTypeBox } from "../utils";
 
-const route: FastifyPluginCallback = (app, _opts, done) => {
+const route: FastifyPluginCallback = (
+    app: FastifyInstanceTypeBox,
+    _opts,
+    done
+) => {
     const TAGS = ["chats"];
-    app.withTypeProvider<TypeBoxTypeProvider>().post(
+    app.post(
         "/",
         {
             schema: {
@@ -109,7 +113,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().get(
+    app.get(
         "/",
         {
             schema: {
@@ -208,7 +212,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().put(
+    app.put(
         "/messages",
         {
             schema: {
@@ -259,7 +263,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().get(
+    app.get(
         "/messages",
         {
             schema: {

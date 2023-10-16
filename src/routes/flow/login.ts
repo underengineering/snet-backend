@@ -3,7 +3,6 @@ import { FastifyPluginCallback } from "fastify";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { CookieSerializeOptions } from "@fastify/cookie";
-import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 
 import { User } from "../../entity/User";
@@ -11,8 +10,13 @@ import {
     AuthenticateResponseSchema,
     JwtBody,
 } from "../../plugins/authenticate";
+import { FastifyInstanceTypeBox } from "../../utils";
 
-const route: FastifyPluginCallback = (app, _opts, done) => {
+const route: FastifyPluginCallback = (
+    app: FastifyInstanceTypeBox,
+    _opts,
+    done
+) => {
     const COOKIE_OPTIONS: CookieSerializeOptions = app.config.JWT_SECURE
         ? {
               httpOnly: true,
@@ -22,7 +26,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
           }
         : { path: "/" };
 
-    app.withTypeProvider<TypeBoxTypeProvider>().post(
+    app.post(
         "/login",
         {
             schema: {

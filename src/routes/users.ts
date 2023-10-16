@@ -1,7 +1,6 @@
 import { FastifyPluginCallback } from "fastify";
 import { IsNull, Not } from "typeorm";
 
-import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Static, Type } from "@sinclair/typebox";
 
 import { FriendRequest, User } from "../entity/User";
@@ -11,11 +10,16 @@ import {
     PublicUserSchema,
     SensibleErrorSchema,
 } from "../plugins/schemas";
+import { FastifyInstanceTypeBox } from "../utils";
 
-const route: FastifyPluginCallback = (app, _opts, done) => {
+const route: FastifyPluginCallback = (
+    app: FastifyInstanceTypeBox,
+    _opts,
+    done
+) => {
     const TAGS = ["users"];
 
-    app.withTypeProvider<TypeBoxTypeProvider>().get(
+    app.get(
         "/",
         {
             schema: {
@@ -45,12 +49,14 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                 registeredAt: user.registeredAt.toISOString(),
                 lastOnlineAt: user.lastOnlineAt.toISOString(),
                 avatar:
-                    user.avatar === null ? undefined : user.avatar.hashSha256,
+                    user.avatar !== undefined
+                        ? user.avatar.hashSha256
+                        : undefined,
             };
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().get(
+    app.get(
         "/me",
         {
             schema: {
@@ -72,7 +78,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().post(
+    app.post(
         "/friendRequests",
         {
             schema: {
@@ -142,7 +148,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().get(
+    app.get(
         "/friendRequests",
         {
             schema: {
@@ -192,9 +198,9 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                         lastOnlineAt:
                             friendRequest.sender.lastOnlineAt.toISOString(),
                         avatar:
-                            user.avatar === null
-                                ? undefined
-                                : user.avatar.hashSha256,
+                            friendRequest.sender.avatar !== undefined
+                                ? friendRequest.sender.avatar.hashSha256
+                                : undefined,
                     },
                     sentAt: friendRequest.sentAt.toISOString(),
                 };
@@ -202,7 +208,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().put(
+    app.put(
         "/friendRequests",
         {
             schema: {
@@ -260,7 +266,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         }
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().delete(
+    app.delete(
         "/friendRequests",
         {
             schema: {
@@ -316,7 +322,7 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
         })
     );
 
-    app.withTypeProvider<TypeBoxTypeProvider>().get(
+    app.get(
         "/me/friendList",
         {
             schema: {
@@ -366,9 +372,9 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                         lastOnlineAt:
                             friendRequest.receiver.lastOnlineAt.toISOString(),
                         avatar:
-                            friendRequest.receiver.avatar === null
-                                ? undefined
-                                : friendRequest.receiver.avatar.hashSha256,
+                            friendRequest.sender.avatar !== undefined
+                                ? friendRequest.sender.avatar.hashSha256
+                                : undefined,
                     },
                 });
             }
@@ -383,9 +389,9 @@ const route: FastifyPluginCallback = (app, _opts, done) => {
                         lastOnlineAt:
                             friendRequest.sender.lastOnlineAt.toISOString(),
                         avatar:
-                            friendRequest.sender.avatar === null
-                                ? undefined
-                                : friendRequest.sender.avatar.hashSha256,
+                            friendRequest.sender.avatar !== undefined
+                                ? friendRequest.sender.avatar.hashSha256
+                                : undefined,
                     },
                 });
             }
