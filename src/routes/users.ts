@@ -344,7 +344,7 @@ const route: FastifyPluginCallback = (
             const [sentFriendRequests, receivedFriendRequests] =
                 await Promise.all([
                     friendRequestRepo.find({
-                        relations: { receiver: true },
+                        relations: { receiver: { avatar: true } },
                         where: {
                             sender: { id: req.userId },
                             acceptedAt: Not(IsNull()),
@@ -352,7 +352,7 @@ const route: FastifyPluginCallback = (
                         },
                     }),
                     friendRequestRepo.find({
-                        relations: { sender: true },
+                        relations: { sender: { avatar: true } },
                         where: {
                             receiver: { id: req.userId },
                             acceptedAt: Not(IsNull()),
@@ -363,6 +363,7 @@ const route: FastifyPluginCallback = (
 
             const friendRequests: Static<typeof meFriendListResp> = [];
             for (const friendRequest of sentFriendRequests) {
+                console.log(friendRequest);
                 friendRequests.push({
                     id: friendRequest.id,
                     user: {
@@ -372,8 +373,8 @@ const route: FastifyPluginCallback = (
                         lastOnlineAt:
                             friendRequest.receiver.lastOnlineAt.toISOString(),
                         avatar:
-                            friendRequest.sender.avatar !== undefined
-                                ? friendRequest.sender.avatar.hashSha256
+                            friendRequest.receiver.avatar !== null
+                                ? friendRequest.receiver.avatar.hashSha256
                                 : undefined,
                     },
                 });
@@ -389,7 +390,7 @@ const route: FastifyPluginCallback = (
                         lastOnlineAt:
                             friendRequest.sender.lastOnlineAt.toISOString(),
                         avatar:
-                            friendRequest.sender.avatar !== undefined
+                            friendRequest.sender.avatar !== null
                                 ? friendRequest.sender.avatar.hashSha256
                                 : undefined,
                     },
