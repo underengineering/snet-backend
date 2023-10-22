@@ -1,15 +1,14 @@
 import { FastifyPluginCallback } from "fastify";
 import { In, IsNull, LessThan, Not } from "typeorm";
 
-import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 
-import { Chat } from "../entity/Chat";
+import { DirectMessage } from "../entity/DirectMessage";
 import { Message } from "../entity/Message";
 import { FriendRequest, User } from "../entity/User";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
 import {
-    ChatSchema,
+    DMSchema,
     MessageSchema,
     SensibleErrorSchema,
 } from "../plugins/schemas";
@@ -20,25 +19,18 @@ const route: FastifyPluginCallback = (
     _opts,
     done
 ) => {
-    const TAGS = ["chats"];
+    const TAGS = ["dms"];
     app.post(
         "/",
         {
             schema: {
-                description: "Create a new chat",
+                description: "Create a new dm",
                 tags: TAGS,
                 body: Type.Object({
-                    participants: Type.Array(Type.String({ format: "uuid" }), {
-                        minItems: 1,
-                    }),
+                    participant: Type.String({ format: "uuid" }),
                 }),
                 response: {
-                    200: Type.Object(
-                        {
-                            id: Type.String({ format: "uuid" }),
-                        },
-                        { description: "Success" }
-                    ),
+                    200: Type.Ref<typeof DMSchema>("DMSchema"),
                     400: Type.Ref<typeof SensibleErrorSchema>(
                         "SensibleErrorSchema",
                         {
@@ -51,65 +43,96 @@ const route: FastifyPluginCallback = (
                     ),
                     404: Type.Ref<typeof SensibleErrorSchema>(
                         "SensibleErrorSchema",
-                        { description: "Chat or participant not found" }
+                        { description: "Participant not found" }
                     ),
                 },
             } as const,
             onRequest: (req, res) => app.authenticate(req, res),
         },
         async (req, res) => {
-            const { participants } = req.body;
+            const { participant } = req.body;
 
             const userRepo = app.dataSource.getRepository(User);
             const friendRequestsRepo =
                 app.dataSource.getRepository(FriendRequest);
-            const participantEntities = await userRepo.findBy({
-                id: In(participants),
+            const participantEntity = await userRepo.findOne({
+                relations: { avatar: true },
+                where: {
+                    id: participant,
+                },
             });
 
-            if (participantEntities.length !== participants.length)
+            if (participantEntity === null)
                 return res.notFound("Participant not found");
 
-            const friends = await friendRequestsRepo.find({
-                relations: { sender: true, receiver: true },
+            const inFriendList = await friendRequestsRepo.exist({
                 where: [
                     {
                         sender: { id: req.userId },
-                        receiver: { id: In(participants) },
+                        receiver: { id: participant },
                         acceptedAt: Not(IsNull()),
                     },
                     {
-                        sender: { id: In(participants) },
+                        sender: { id: participant },
                         receiver: { id: req.userId },
                         acceptedAt: Not(IsNull()),
                     },
                 ],
             });
 
-            const friendIds = new Set(
-                friends.map((friend) =>
-                    friend.sender.id === req.userId
-                        ? friend.receiver.id
-                        : friend.sender.id
-                )
-            );
+            if (!inFriendList)
+                return res.badRequest(
+                    "Tried to add a participant not in friend list"
+                );
 
-            for (const participant of participantEntities) {
-                if (!friendIds.has(participant.id)) {
-                    return res.badRequest(
-                        "Tried to add a participant not in friend list"
-                    );
-                }
-            }
+            const dmRepo = app.dataSource.getRepository(DirectMessage);
 
-            const chatRepo = app.dataSource.getRepository(Chat);
-            const newChat = chatRepo.create({
-                participants: [...participantEntities, req.userEntity],
+            // Check for an existing dm first
+            const foundDM = await dmRepo.findOne({
+                relations: { user1: { avatar: true }, user2: { avatar: true } },
+                where: {
+                    user1: In([req.userId, participant]),
+                    user2: In([req.userId, participant]),
+                },
             });
 
-            await chatRepo.save(newChat);
+            if (foundDM !== null)
+                return {
+                    ...foundDM,
+                    createdAt: foundDM.createdAt.toISOString(),
+                    participant: {
+                        ...participantEntity,
+                        registeredAt:
+                            participantEntity.registeredAt.toISOString(),
+                        lastOnlineAt:
+                            participantEntity.lastOnlineAt.toISOString(),
+                        avatar:
+                            participantEntity.avatar === null
+                                ? undefined
+                                : participantEntity.avatar.hashSha256,
+                    },
+                };
 
-            return { id: newChat.id };
+            const newDM = dmRepo.create({
+                user1: req.userEntity,
+                user2: participantEntity,
+            });
+
+            await dmRepo.save(newDM);
+
+            return {
+                ...newDM,
+                createdAt: newDM.createdAt.toISOString(),
+                participant: {
+                    ...participantEntity,
+                    registeredAt: participantEntity.registeredAt.toISOString(),
+                    lastOnlineAt: participantEntity.lastOnlineAt.toISOString(),
+                    avatar:
+                        participantEntity.avatar === null
+                            ? undefined
+                            : participantEntity.avatar.hashSha256,
+                },
+            };
         }
     );
 
@@ -117,12 +140,12 @@ const route: FastifyPluginCallback = (
         "/",
         {
             schema: {
-                description: "Get chats",
+                description: "Get all dms",
                 tags: TAGS,
                 response: {
                     200: Type.Array(
                         Type.Composite([
-                            ChatSchema,
+                            DMSchema,
                             Type.Object({
                                 messages: Type.Array(
                                     Type.Ref<typeof MessageSchema>(
@@ -140,56 +163,54 @@ const route: FastifyPluginCallback = (
             onRequest: (req, res) => app.authenticate(req, res),
         },
         async (req) => {
-            const chatRepo = app.dataSource.getRepository(Chat);
-            const foundChats = await chatRepo
-                .createQueryBuilder("chats")
-                // Load all participants
-                .leftJoinAndSelect(
-                    "chat_participants_user",
-                    "participants_many_to_many",
-                    '"participants_many_to_many"."chatId" = chats.id'
-                )
-                .leftJoinAndSelect("chats.participants", "participants")
-                .where('"participants_many_to_many"."userId" = :id', {
+            const dmRepo = app.dataSource.getRepository(DirectMessage);
+            const foundDMs = await dmRepo
+                .createQueryBuilder("dms")
+                .leftJoinAndSelect("dms.user1", "user1")
+                .leftJoinAndSelect("dms.user2", "user2")
+                .leftJoinAndSelect("user1.avatar", "user1.avatar")
+                .leftJoinAndSelect("user2.avatar", "user2.avatar")
+                .where('"dms"."user1Id" = :id OR "dms"."user2Id" = :id', {
                     id: req.userId,
                 })
                 .getMany();
 
             const messageRepo = app.dataSource.getRepository(Message);
-            const foundChatsWithMessage = await Promise.all(
-                foundChats.map<Promise<Chat>>((chat) =>
+            const foundDMsWithMessage = await Promise.all(
+                foundDMs.map<Promise<DirectMessage>>((dm) =>
                     messageRepo
                         .find({
-                            relations: { author: true },
-                            where: { chat: { id: chat.id } },
+                            relations: { author: { avatar: true } },
+                            where: { dm: { id: dm.id } },
                             order: { createdAt: "desc" },
                             take: 1,
                         })
                         .then((messages) => {
                             // Add last message
                             return {
-                                ...chat,
+                                ...dm,
                                 messages,
                             };
                         })
                 )
             );
 
-            return foundChatsWithMessage.map((chat) => {
+            // TODO: Use Type.Transform
+            return foundDMsWithMessage.map((chat) => {
+                const participant =
+                    chat.user1.id === req.userId ? chat.user2 : chat.user1;
                 return {
                     ...chat,
                     createdAt: chat.createdAt.toISOString(),
-                    participants: chat.participants.map((user) => {
-                        return {
-                            ...user,
-                            registeredAt: user.registeredAt.toISOString(),
-                            lastOnlineAt: user.lastOnlineAt.toISOString(),
-                            avatar:
-                                user.avatar === null
-                                    ? undefined
-                                    : user.avatar.hashSha256,
-                        };
-                    }),
+                    participant: {
+                        ...participant,
+                        registeredAt: participant.registeredAt.toISOString(),
+                        lastOnlineAt: participant.lastOnlineAt.toISOString(),
+                        avatar:
+                            participant.avatar === null
+                                ? undefined
+                                : participant.avatar.hashSha256,
+                    },
                     messages: chat.messages.map((message) => {
                         return {
                             ...message,
@@ -223,13 +244,13 @@ const route: FastifyPluginCallback = (
                     content: Type.String({ maxLength: 2000 }),
                 }),
                 response: {
-                    200: Type.Object({}, { description: "Success" }),
+                    200: Type.Object({}),
                     401: Type.Ref<typeof AuthenticateResponseSchema>(
                         "AuthenticateResponseSchema"
                     ),
                     404: Type.Ref<typeof SensibleErrorSchema>(
                         "SensibleErrorSchema",
-                        { description: "Chat not found" }
+                        { description: "DM not found" }
                     ),
                 },
             } as const,
@@ -238,8 +259,8 @@ const route: FastifyPluginCallback = (
         async (req, res) => {
             const { id, content } = req.body;
 
-            const chatRepo = app.dataSource.getRepository(Chat);
-            const foundChat = await chatRepo.findOne({
+            const dmRepo = app.dataSource.getRepository(DirectMessage);
+            const foundDM = await dmRepo.findOne({
                 relations: {
                     messages: true,
                 },
@@ -248,12 +269,12 @@ const route: FastifyPluginCallback = (
                 },
             });
 
-            if (foundChat === null) return res.notFound("Chat not found");
+            if (foundDM === null) return res.notFound("Chat not found");
 
             const messageRepo = app.dataSource.getRepository(Message);
             const message = messageRepo.create({
                 author: req.userEntity,
-                chat: { id },
+                dm: { id },
                 content,
             });
 
@@ -292,14 +313,16 @@ const route: FastifyPluginCallback = (
 
             const messageRepo = app.dataSource.getRepository(Message);
             const messages = await messageRepo.find({
-                relations: { author: true },
+                relations: { author: { avatar: true } },
                 where: {
                     id: beforeId !== undefined ? LessThan(beforeId) : undefined,
-                    chat: { id },
+                    dm: { id },
                 },
                 order: { id: "asc" },
                 take: limit ?? 30,
             });
+
+            console.log("MSGS", messages);
 
             return messages.map((message) => ({
                 ...message,

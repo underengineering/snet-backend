@@ -38,15 +38,13 @@ export const PrivateUserSchema = Type.Object(
     { $id: "PrivateUserSchema" }
 );
 
-export const ChatSchema = Type.Object(
+export const DMSchema = Type.Object(
     {
         id: Type.String({ format: "uuid" }),
         createdAt: Type.String({ format: "date-time" }),
-        participants: Type.Array(
-            Type.Ref<typeof PublicUserSchema>("PublicUserSchema")
-        ),
+        participant: Type.Ref<typeof PublicUserSchema>("PublicUserSchema"),
     },
-    { $id: "ChatSchema" }
+    { $id: "DMSchema" }
 );
 
 export const MessageSchema = Type.Object(
@@ -65,7 +63,7 @@ const schemasPlugin = fastifyPlugin(async function (app) {
     app.addSchema(SensibleErrorSchema);
     app.addSchema(PublicUserSchema);
     app.addSchema(PrivateUserSchema);
-    app.addSchema(ChatSchema);
+    app.addSchema(DMSchema);
     app.addSchema(MessageSchema);
 });
 

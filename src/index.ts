@@ -9,7 +9,7 @@ import fastifySensible from "@fastify/sensible";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 
-import { Chat } from "./entity/Chat";
+import { DirectMessage } from "./entity/DirectMessage";
 import { File } from "./entity/File";
 import { Message } from "./entity/Message";
 import { FriendRequest, User } from "./entity/User";
@@ -71,11 +71,11 @@ async function main() {
         username: app.config.DB_USERNAME,
         password: app.config.DB_PASSWORD,
         database: app.config.DB_DATABASE,
-        entities: [User, Message, Chat, FriendRequest, File],
+        entities: [User, Message, DirectMessage, FriendRequest, File],
     });
 
     // Register routes
-    app.register(routes.chats, { prefix: "/chats" });
+    app.register(routes.dms, { prefix: "/dms" });
     app.register(routes.login, { prefix: "/flow" });
     app.register(routes.register, { prefix: "/flow" });
     app.register(routes.users, { prefix: "/users" });

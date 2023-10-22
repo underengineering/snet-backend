@@ -7,7 +7,7 @@ import {
     PrimaryGeneratedColumn,
 } from "typeorm";
 
-import { Chat } from "./Chat";
+import { DirectMessage } from "./DirectMessage";
 import { User } from "./User";
 
 @Entity()
@@ -25,8 +25,8 @@ export class Message {
     @ManyToOne(() => User, (user) => user.messages, { nullable: false })
     author: User;
 
-    @ManyToOne(() => Chat, (chat) => chat.messages, { nullable: false })
-    chat: Chat;
+    @ManyToOne(() => DirectMessage, (dm) => dm.messages, { nullable: false })
+    dm: DirectMessage;
 
     @Column({ length: 2000, nullable: true, default: null })
     content: string;
