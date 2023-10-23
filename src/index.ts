@@ -141,10 +141,11 @@ async function main() {
 
     // Register routes
     app.register(routes.dms, { prefix: "/dms" });
+    app.register(routes.files, { prefix: "/files" });
+    app.register(routes.friends, { prefix: "/friends" });
     app.register(routes.login, { prefix: "/flow" });
     app.register(routes.register, { prefix: "/flow" });
     app.register(routes.users, { prefix: "/users" });
-    app.register(routes.files, { prefix: "/files" });
 
     // Start the app
     try {
