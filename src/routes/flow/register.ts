@@ -2,10 +2,10 @@ import { FastifyPluginCallback } from "fastify";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 
 import { User } from "../../entity/User";
+import { SensibleErrorSchema } from "../../plugins/schemas";
 import { FastifyInstanceTypeBox } from "../../utils";
 
 const route: FastifyPluginCallback = (
@@ -44,14 +44,9 @@ const route: FastifyPluginCallback = (
                         {},
                         { description: "Acoount registered successfuly" }
                     ),
-                    409: Type.Object(
-                        {
-                            statusCode: Type.Integer(),
-                            error: Type.String(),
-                            message: Type.String(),
-                        },
-                        { description: "Tried to register already used email" }
-                    ),
+                    409: Type.Ref(SensibleErrorSchema, {
+                        description: "Tried to register already used email",
+                    }),
                 },
             } as const,
         },

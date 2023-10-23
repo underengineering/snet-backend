@@ -33,12 +33,8 @@ const route: FastifyPluginCallback = (
                 }),
                 response: {
                     200: Type.Any(),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                    404: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema"
-                    ),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                    404: Type.Ref(SensibleErrorSchema),
                 },
             },
             onRequest: (req, res) => app.authenticate(req, res),
@@ -72,12 +68,8 @@ const route: FastifyPluginCallback = (
                     200: Type.Object({
                         hash: Type.String({ pattern: "[a-f0-9]{64}" }),
                     }),
-                    400: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema"
-                    ),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
+                    400: Type.Ref(SensibleErrorSchema),
+                    401: Type.Ref(AuthenticateResponseSchema),
                 },
             },
             onRequest: (req, res) => app.authenticate(req, res),

@@ -2,13 +2,16 @@ import { FastifyPluginCallback } from "fastify";
 import { IsNull, Not } from "typeorm";
 
 import { Static, Type } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 
 import { FriendRequest, User } from "../entity/User";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
 import {
     PrivateUserSchema,
     PublicUserSchema,
+    ReceivedFriendRequestSchema,
     SensibleErrorSchema,
+    SentFriendRequestSchema,
 } from "../plugins/schemas";
 import { FastifyInstanceTypeBox } from "../utils";
 
@@ -29,10 +32,8 @@ const route: FastifyPluginCallback = (
                     id: Type.String({ format: "uuid" }),
                 }),
                 response: {
-                    200: Type.Ref<typeof PublicUserSchema>("PublicUserSchema"),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
+                    200: Type.Ref(PublicUserSchema),
+                    401: Type.Ref(AuthenticateResponseSchema),
                 },
             },
             onRequest: (req, res) => app.authenticate(req, res),
@@ -44,15 +45,48 @@ const route: FastifyPluginCallback = (
             const user = await userRepo.findOneBy({ id });
             if (user === null) return res.notFound("User not found");
 
-            return {
-                ...user,
-                registeredAt: user.registeredAt.toISOString(),
-                lastOnlineAt: user.lastOnlineAt.toISOString(),
-                avatar:
-                    user.avatar !== undefined
-                        ? user.avatar.hashSha256
-                        : undefined,
-            };
+            return Value.Encode(PublicUserSchema, user);
+        }
+    );
+
+    app.get(
+        "/search",
+        {
+            schema: {
+                description: "Search users",
+                tags: TAGS,
+                querystring: Type.Object({
+                    query: Type.String(),
+                    skip: Type.Integer({ default: 0, minimum: 0 }),
+                    limit: Type.Integer({
+                        default: 30,
+                        minimum: 0,
+                        maximum: 30,
+                    }),
+                }),
+                response: {
+                    200: Type.Array(Type.Ref(PublicUserSchema)),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                },
+            },
+            onRequest: (req, res) => app.authenticate(req, res),
+        },
+        async (req) => {
+            const { query, skip, limit } = req.query;
+
+            const userRepo = app.dataSource.getRepository(User);
+            const users = await userRepo
+                .createQueryBuilder("user")
+                .orderBy(
+                    "levenshtein(CONCAT(user.name, user.surname), :query)",
+                    "ASC"
+                )
+                .setParameter("query", query)
+                .limit(limit)
+                .offset(skip)
+                .getMany();
+
+            return users.map((user) => Value.Encode(PublicUserSchema, user));
         }
     );
 
@@ -63,12 +97,8 @@ const route: FastifyPluginCallback = (
                 description: "Get info about current user",
                 tags: TAGS,
                 response: {
-                    200: Type.Ref<typeof PrivateUserSchema>(
-                        "PrivateUserSchema"
-                    ),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
+                    200: Type.Ref(PrivateUserSchema),
+                    401: Type.Ref(AuthenticateResponseSchema),
                 },
             },
             onRequest: app.authenticate,
@@ -88,18 +118,14 @@ const route: FastifyPluginCallback = (
                     id: Type.String({ format: "uuid" }),
                 }),
                 response: {
-                    200: Type.Object({}),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                    404: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        { description: "Tried to send friend request to self" }
-                    ),
-                    409: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        { description: "There is an friend request already" }
-                    ),
+                    200: Type.Object({ id: Type.String({ format: "uuid" }) }),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                    404: Type.Ref(SensibleErrorSchema, {
+                        description: "Tried to send friend request to self",
+                    }),
+                    409: Type.Ref(SensibleErrorSchema, {
+                        description: "There is an friend request already",
+                    }),
                 },
             },
             onRequest: (req, res) => app.authenticate(req, res),
@@ -116,26 +142,20 @@ const route: FastifyPluginCallback = (
 
             const friendRequestRepo =
                 app.dataSource.getRepository(FriendRequest);
-            const friendRequestCount = await friendRequestRepo.findOneBy({
+            const foundFriendRequest = await friendRequestRepo.findOneBy({
                 sender: {
                     id: req.userId,
                 },
                 receiver: {
                     id: user.id,
                 },
-                removedAt: Not(IsNull()),
+                removedAt: IsNull(),
             });
 
-            if (friendRequestCount !== null) {
-                if (friendRequestCount.acceptedAt !== null)
-                    return res.conflict(
-                        "This user is already in the friend list"
-                    );
-
+            if (foundFriendRequest !== null)
                 return res.conflict(
                     "There is a pending friend request already"
                 );
-            }
 
             const friendRequest = friendRequestRepo.create({
                 sender: req.userEntity,
@@ -144,67 +164,7 @@ const route: FastifyPluginCallback = (
 
             await friendRequestRepo.save(friendRequest);
 
-            return {};
-        }
-    );
-
-    app.get(
-        "/friendRequests",
-        {
-            schema: {
-                description: "List pending friend requests",
-                tags: TAGS,
-                response: {
-                    200: Type.Array(
-                        Type.Object({
-                            id: Type.String({ format: "uuid" }),
-                            sender: Type.Ref<typeof PublicUserSchema>(
-                                "PublicUserSchema"
-                            ),
-                            sentAt: Type.String({ format: "date-time" }),
-                        })
-                    ),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                },
-            },
-            onRequest: (req, res) => app.authenticate(req, res),
-        },
-        async (req) => {
-            const userRepo = app.dataSource.getRepository(User);
-            const user = await userRepo.findOne({
-                relations: {
-                    receivedFriendRequests: { sender: true },
-                },
-                where: {
-                    id: req.userId,
-                    receivedFriendRequests: {
-                        acceptedAt: Not(IsNull()),
-                        removedAt: Not(IsNull()),
-                    },
-                },
-            });
-
-            if (user === null) return [];
-
-            return user.receivedFriendRequests.map((friendRequest) => {
-                return {
-                    id: friendRequest.id,
-                    sender: {
-                        ...friendRequest.sender,
-                        registeredAt:
-                            friendRequest.sender.registeredAt.toISOString(),
-                        lastOnlineAt:
-                            friendRequest.sender.lastOnlineAt.toISOString(),
-                        avatar:
-                            friendRequest.sender.avatar !== undefined
-                                ? friendRequest.sender.avatar.hashSha256
-                                : undefined,
-                    },
-                    sentAt: friendRequest.sentAt.toISOString(),
-                };
-            });
+            return friendRequest;
         }
     );
 
@@ -219,23 +179,13 @@ const route: FastifyPluginCallback = (
                 }),
                 response: {
                     200: Type.Object({}),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                    404: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        {
-                            description:
-                                "Friend request not found or was removed",
-                        }
-                    ),
-                    409: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        {
-                            description:
-                                "This friend request is already accepted",
-                        }
-                    ),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                    404: Type.Ref(SensibleErrorSchema, {
+                        description: "Friend request not found or was removed",
+                    }),
+                    409: Type.Ref(SensibleErrorSchema, {
+                        description: "This friend request is already accepted",
+                    }),
                 },
             },
             onRequest: (req, res) => app.authenticate(req, res),
@@ -277,20 +227,13 @@ const route: FastifyPluginCallback = (
                 }),
                 response: {
                     200: Type.Object({}),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                    404: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        { description: "Friend request not found" }
-                    ),
-                    409: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        {
-                            description:
-                                "This friend request is already removed",
-                        }
-                    ),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                    404: Type.Ref(SensibleErrorSchema, {
+                        description: "Friend request not found",
+                    }),
+                    409: Type.Ref(SensibleErrorSchema, {
+                        description: "This friend request is already removed",
+                    }),
                 },
             },
             onRequest: (req, res) => app.authenticate(req, res),
@@ -330,9 +273,7 @@ const route: FastifyPluginCallback = (
                 tags: TAGS,
                 response: {
                     200: meFriendListResp,
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
+                    401: Type.Ref(AuthenticateResponseSchema),
                 },
             },
             onRequest: (req, res) => app.authenticate(req, res),
@@ -361,43 +302,85 @@ const route: FastifyPluginCallback = (
                     }),
                 ]);
 
-            const friendRequests: Static<typeof meFriendListResp> = [];
+            const friendRequests = [];
             for (const friendRequest of sentFriendRequests) {
-                console.log(friendRequest);
                 friendRequests.push({
                     id: friendRequest.id,
-                    user: {
-                        ...friendRequest.receiver,
-                        registeredAt:
-                            friendRequest.receiver.registeredAt.toISOString(),
-                        lastOnlineAt:
-                            friendRequest.receiver.lastOnlineAt.toISOString(),
-                        avatar:
-                            friendRequest.receiver.avatar !== null
-                                ? friendRequest.receiver.avatar.hashSha256
-                                : undefined,
-                    },
+                    user: friendRequest.receiver,
                 });
             }
 
             for (const friendRequest of receivedFriendRequests) {
                 friendRequests.push({
                     id: friendRequest.id,
-                    user: {
-                        ...friendRequest.sender,
-                        registeredAt:
-                            friendRequest.sender.registeredAt.toISOString(),
-                        lastOnlineAt:
-                            friendRequest.sender.lastOnlineAt.toISOString(),
-                        avatar:
-                            friendRequest.sender.avatar !== null
-                                ? friendRequest.sender.avatar.hashSha256
-                                : undefined,
-                    },
+                    user: friendRequest.sender,
                 });
             }
 
-            return friendRequests;
+            return friendRequests.map((friendRequest) => ({
+                ...friendRequest,
+                user: Value.Encode(PublicUserSchema, friendRequest.user),
+            }));
+        }
+    );
+
+    app.get(
+        "/me/friendRequests",
+        {
+            schema: {
+                description: "List pending friend requests",
+                tags: TAGS,
+                response: {
+                    200: Type.Object({
+                        received: Type.Array(
+                            Type.Ref(ReceivedFriendRequestSchema)
+                        ),
+                        sent: Type.Array(Type.Ref(SentFriendRequestSchema)),
+                    }),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                },
+            },
+            onRequest: (req, res) => app.authenticate(req, res),
+        },
+        async (req) => {
+            const userRepo = app.dataSource.getRepository(User);
+            const user = await userRepo
+                .createQueryBuilder("user")
+                .leftJoinAndSelect(
+                    "user.receivedFriendRequests",
+                    "receivedFriendRequests",
+                    "receivedFriendRequests.acceptedAt IS NULL AND receivedFriendRequests.removedAt IS NULL"
+                )
+                .leftJoinAndSelect(
+                    "user.sentFriendRequests",
+                    "sentFriendRequests",
+                    "sentFriendRequests.acceptedAt IS NULL AND sentFriendRequests.removedAt IS NULL"
+                )
+                .leftJoinAndSelect("receivedFriendRequests.sender", "sender")
+                .leftJoinAndSelect("sentFriendRequests.receiver", "receiver")
+                .leftJoinAndSelect("sender.avatar", "senderAvatar")
+                .leftJoinAndSelect("receiver.avatar", "receiverAvatar")
+                .where("user.id = :id", { id: req.userId })
+                .getOne();
+
+            if (user === null) return { received: [], sent: [] };
+
+            return {
+                received: user.receivedFriendRequests.map((friendRequest) =>
+                    Value.Encode(
+                        ReceivedFriendRequestSchema,
+                        [PublicUserSchema],
+                        friendRequest
+                    )
+                ),
+                sent: user.sentFriendRequests.map((friendRequest) =>
+                    Value.Encode(
+                        SentFriendRequestSchema,
+                        [PublicUserSchema],
+                        friendRequest
+                    )
+                ),
+            };
         }
     );
 

@@ -2,6 +2,7 @@ import { FastifyPluginCallback } from "fastify";
 import { In, IsNull, LessThan, Not } from "typeorm";
 
 import { Type } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 
 import { DirectMessage } from "../entity/DirectMessage";
 import { Message } from "../entity/Message";
@@ -10,6 +11,7 @@ import { AuthenticateResponseSchema } from "../plugins/authenticate";
 import {
     DMSchema,
     MessageSchema,
+    PublicUserSchema,
     SensibleErrorSchema,
 } from "../plugins/schemas";
 import { FastifyInstanceTypeBox } from "../utils";
@@ -30,21 +32,15 @@ const route: FastifyPluginCallback = (
                     participant: Type.String({ format: "uuid" }),
                 }),
                 response: {
-                    200: Type.Ref<typeof DMSchema>("DMSchema"),
-                    400: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        {
-                            description:
-                                "Tried to add a participant not in friend list",
-                        }
-                    ),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                    404: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        { description: "Participant not found" }
-                    ),
+                    200: Type.Ref(DMSchema),
+                    400: Type.Ref(SensibleErrorSchema, {
+                        description:
+                            "Tried to add a participant not in friend list",
+                    }),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                    404: Type.Ref(SensibleErrorSchema, {
+                        description: "Participant not found",
+                    }),
                 },
             } as const,
             onRequest: (req, res) => app.authenticate(req, res),
@@ -100,17 +96,10 @@ const route: FastifyPluginCallback = (
                 return {
                     ...foundDM,
                     createdAt: foundDM.createdAt.toISOString(),
-                    participant: {
-                        ...participantEntity,
-                        registeredAt:
-                            participantEntity.registeredAt.toISOString(),
-                        lastOnlineAt:
-                            participantEntity.lastOnlineAt.toISOString(),
-                        avatar:
-                            participantEntity.avatar === null
-                                ? undefined
-                                : participantEntity.avatar.hashSha256,
-                    },
+                    participant: Value.Encode(
+                        PublicUserSchema,
+                        participantEntity
+                    ),
                 };
 
             const newDM = dmRepo.create({
@@ -123,15 +112,7 @@ const route: FastifyPluginCallback = (
             return {
                 ...newDM,
                 createdAt: newDM.createdAt.toISOString(),
-                participant: {
-                    ...participantEntity,
-                    registeredAt: participantEntity.registeredAt.toISOString(),
-                    lastOnlineAt: participantEntity.lastOnlineAt.toISOString(),
-                    avatar:
-                        participantEntity.avatar === null
-                            ? undefined
-                            : participantEntity.avatar.hashSha256,
-                },
+                participant: Value.Encode(PublicUserSchema, participantEntity),
             };
         }
     );
@@ -147,17 +128,11 @@ const route: FastifyPluginCallback = (
                         Type.Composite([
                             DMSchema,
                             Type.Object({
-                                messages: Type.Array(
-                                    Type.Ref<typeof MessageSchema>(
-                                        "MessageSchema"
-                                    )
-                                ),
+                                messages: Type.Array(Type.Ref(MessageSchema)),
                             }),
                         ])
                     ),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
+                    401: Type.Ref(AuthenticateResponseSchema),
                 },
             } as const,
             onRequest: (req, res) => app.authenticate(req, res),
@@ -195,38 +170,20 @@ const route: FastifyPluginCallback = (
                 )
             );
 
-            // TODO: Use Type.Transform
             return foundDMsWithMessage.map((chat) => {
                 const participant =
                     chat.user1.id === req.userId ? chat.user2 : chat.user1;
+
                 return {
                     ...chat,
                     createdAt: chat.createdAt.toISOString(),
-                    participant: {
-                        ...participant,
-                        registeredAt: participant.registeredAt.toISOString(),
-                        lastOnlineAt: participant.lastOnlineAt.toISOString(),
-                        avatar:
-                            participant.avatar === null
-                                ? undefined
-                                : participant.avatar.hashSha256,
-                    },
+                    participant: Value.Encode(PublicUserSchema, participant),
                     messages: chat.messages.map((message) => {
-                        return {
-                            ...message,
-                            author: {
-                                ...message.author,
-                                registeredAt:
-                                    message.author.registeredAt.toISOString(),
-                                lastOnlineAt:
-                                    message.author.lastOnlineAt.toISOString(),
-                                avatar:
-                                    message.author.avatar === null
-                                        ? undefined
-                                        : message.author.avatar.hashSha256,
-                            },
-                            createdAt: message.createdAt.toISOString(),
-                        };
+                        return Value.Encode(
+                            MessageSchema,
+                            [PublicUserSchema],
+                            message
+                        );
                     }),
                 };
             });
@@ -245,13 +202,10 @@ const route: FastifyPluginCallback = (
                 }),
                 response: {
                     200: Type.Object({}),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
-                    404: Type.Ref<typeof SensibleErrorSchema>(
-                        "SensibleErrorSchema",
-                        { description: "DM not found" }
-                    ),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                    404: Type.Ref(SensibleErrorSchema, {
+                        description: "DM not found",
+                    }),
                 },
             } as const,
             onRequest: (req, res) => app.authenticate(req, res),
@@ -298,12 +252,8 @@ const route: FastifyPluginCallback = (
                     ),
                 }),
                 response: {
-                    200: Type.Array(
-                        Type.Ref<typeof MessageSchema>("MessageSchema")
-                    ),
-                    401: Type.Ref<typeof AuthenticateResponseSchema>(
-                        "AuthenticateResponseSchema"
-                    ),
+                    200: Type.Array(Type.Ref(MessageSchema)),
+                    401: Type.Ref(AuthenticateResponseSchema),
                 },
             } as const,
             onRequest: (req, res) => app.authenticate(req, res),
@@ -322,21 +272,9 @@ const route: FastifyPluginCallback = (
                 take: limit ?? 30,
             });
 
-            console.log("MSGS", messages);
-
-            return messages.map((message) => ({
-                ...message,
-                createdAt: message.createdAt.toISOString(),
-                author: {
-                    ...message.author,
-                    registeredAt: message.author.registeredAt.toISOString(),
-                    lastOnlineAt: message.author.lastOnlineAt.toISOString(),
-                    avatar:
-                        message.author.avatar === null
-                            ? undefined
-                            : message.author.avatar.hashSha256,
-                },
-            }));
+            return messages.map((message) =>
+                Value.Encode(MessageSchema, [PublicUserSchema], message)
+            );
         }
     );
 
