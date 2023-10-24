@@ -1,6 +1,5 @@
+import bcrypt from "bcrypt";
 import { FastifyPluginCallback } from "fastify";
-
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { CookieSerializeOptions } from "@fastify/cookie";
 import { Type } from "@sinclair/typebox";
@@ -59,23 +58,9 @@ const route: FastifyPluginCallback = (
                 email,
             });
 
-            // Hash against zeros if user is not found to prevent timing attacks
-            const passwordSalt =
-                foundUser === null
-                    ? randomBytes(8)
-                    : Buffer.from(foundUser.passwordSalt, "hex");
-            const passwordSha256 =
-                foundUser === null
-                    ? Buffer.alloc(32)
-                    : Buffer.from(foundUser.passwordSha256, "hex");
-
-            const providedPasswordSha256 = createHash("sha256")
-                .update(password)
-                .update(passwordSalt)
-                .digest();
             if (
-                !timingSafeEqual(providedPasswordSha256, passwordSha256) ||
-                foundUser === null
+                foundUser === null ||
+                !(await bcrypt.compare(password, foundUser?.passwordHash))
             )
                 return res.forbidden("Invalid password or email");
 

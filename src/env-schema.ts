@@ -5,14 +5,19 @@ import { Static, Type } from "@sinclair/typebox";
 const EnvSchema = Type.Object({
     PORT: Type.Integer({ default: 8080 }),
     HOSTNAME: Type.String({ default: "localhost" }),
+
     JWT_SECRET: Type.String(),
     JWT_EXPIRY_TIME: Type.String(),
     JWT_SECURE: Type.Boolean(),
+
     DB_HOST: Type.String(),
     DB_PORT: Type.Integer({ default: 5432 }),
     DB_USERNAME: Type.String(),
     DB_PASSWORD: Type.String(),
     DB_DATABASE: Type.String(),
+
+    BCRYPT_ROUNDS: Type.Integer({ default:10,minimum: 0 }),
+
     STORAGE_PATH: Type.String(),
     STORAGE_TMP_PATH: Type.Optional(Type.String()),
     // Set to true if STORAGE_TMP_PATH

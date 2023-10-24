@@ -49,8 +49,6 @@ export class FriendRequest {
 @Check("CHK_nameLength", `LENGTH("name") >= 2`)
 @Check("CHK_surnameLength", `LENGTH("surname") >= 2`)
 @Check("CHK_emailLength", `LENGTH("email") >= 3`)
-@Check("CHK_passwordSha256Len", `LENGTH("passwordSha256") = 64`)
-@Check("CHK_passwordSaltLen", `LENGTH("passwordSalt") = 16`)
 @Check("CHK_deletedAt", `"deletedAt" <= NOW()`)
 export class User {
     @PrimaryGeneratedColumn("uuid")
@@ -77,11 +75,8 @@ export class User {
     @ManyToOne(() => File)
     avatar: Relation<File>;
 
-    @Column({ length: 64 })
-    passwordSha256: string;
-
-    @Column({ length: 16 })
-    passwordSalt: string;
+    @Column({ length: 128 })
+    passwordHash: string;
 
     @OneToMany(() => Message, (message) => message.author)
     messages: Message[];

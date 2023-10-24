@@ -1,6 +1,5 @@
+import bcrypt from "bcrypt";
 import { FastifyPluginCallback } from "fastify";
-
-import { createHash, randomBytes } from "node:crypto";
 
 import { Type } from "@sinclair/typebox";
 
@@ -61,18 +60,16 @@ const route: FastifyPluginCallback = (
             if (foundUser !== null)
                 return res.conflict("This email is already occupied");
 
-            const passwordSalt = randomBytes(8);
-            const passwordSha256 = createHash("sha256")
-                .update(password)
-                .update(passwordSalt)
-                .digest("hex");
+            const passwordHash = await bcrypt.hash(
+                password,
+                app.config.BCRYPT_ROUNDS
+            );
 
             const newUser = userRepo.create({
                 name,
                 surname,
                 email,
-                passwordSha256,
-                passwordSalt: passwordSalt.toString("hex"),
+                passwordHash,
             });
 
             await userRepo.save(newUser);
