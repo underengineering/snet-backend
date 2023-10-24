@@ -201,7 +201,7 @@ const route: FastifyPluginCallback = (
                     content: Type.String({ maxLength: 2000 }),
                 }),
                 response: {
-                    200: Type.Object({}),
+                    200: Type.Object({ id: Type.Integer({ minimum: 0 }) }),
                     401: Type.Ref(AuthenticateResponseSchema),
                     404: Type.Ref(SensibleErrorSchema, {
                         description: "DM not found",
@@ -234,7 +234,7 @@ const route: FastifyPluginCallback = (
 
             await messageRepo.save(message);
 
-            return {};
+            return message;
         }
     );
 
