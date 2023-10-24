@@ -7,6 +7,7 @@ import { Value } from "@sinclair/typebox/value";
 import { File } from "../entity/File";
 import { Message } from "../entity/Message";
 import { FriendRequest, User } from "../entity/User";
+import { FastifyInstanceTypeBox } from "../utils";
 
 export const SensibleErrorSchema = Type.Object(
     {
@@ -81,7 +82,7 @@ export const PrivateUserSchema = Type.Transform(
     .Encode((user) => ({
         ...user,
         registeredAt: user.registeredAt.toISOString(),
-        avatar: user.avatar !== undefined ? user.avatar.hashSha256 : undefined,
+        avatar: user.avatar?.hashSha256,
     }));
 
 export const SentFriendRequestSchema = Type.Transform(
@@ -171,8 +172,9 @@ export const MessageSchema = Type.Transform(
         author: Value.Encode(PublicUserSchema, message.author),
     }));
 
-const schemasPlugin = fastifyPlugin(async function (app) {
-    app = app.withTypeProvider<TypeBoxTypeProvider>();
+const schemasPlugin = fastifyPlugin(async function (
+    app: FastifyInstanceTypeBox
+) {
     app.addSchema(SensibleErrorSchema);
     app.addSchema(PublicUserSchema);
     app.addSchema(PrivateUserSchema);
