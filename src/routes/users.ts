@@ -3,9 +3,14 @@ import { FastifyPluginCallback } from "fastify";
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 
+import { File } from "../entity/File";
 import { User } from "../entity/User";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
-import { PrivateUserSchema, PublicUserSchema } from "../plugins/schemas";
+import {
+    PrivateUserSchema,
+    PublicUserSchema,
+    SensibleErrorSchema,
+} from "../plugins/schemas";
 import { FastifyInstanceTypeBox } from "../utils";
 
 const route: FastifyPluginCallback = (
@@ -94,10 +99,54 @@ const route: FastifyPluginCallback = (
                     401: Type.Ref(AuthenticateResponseSchema),
                 },
             },
-            onRequest: app.authenticate,
+            onRequest: (req, res) => app.authenticate(req, res),
         },
         (req) => {
-            return req.userEntity;
+            return Value.Encode(PrivateUserSchema, req.userEntity);
+        }
+    );
+
+    app.patch(
+        "/me",
+        {
+            schema: {
+                description: "Edit user info",
+                tags: TAGS,
+                body: Type.Object({
+                    name: Type.Optional(Type.String({ minLength: 1 })),
+                    surname: Type.Optional(Type.String({ minLength: 1 })),
+                    avatar: Type.Optional(
+                        Type.String({ pattern: "[a-f0-9]{64}" })
+                    ),
+                }),
+                response: {
+                    200: Type.Ref(PrivateUserSchema),
+                    401: Type.Ref(AuthenticateResponseSchema),
+                    404: Type.Ref(SensibleErrorSchema, {
+                        description: "File not found",
+                    }),
+                },
+            },
+            onRequest: (req, res) => app.authenticate(req, res),
+        },
+        async (req, res) => {
+            const { name, surname, avatar } = req.body;
+
+            if (avatar) {
+                const fileRepo = app.dataSource.getRepository(File);
+                const file = await fileRepo.findOneBy({ hashSha256: avatar });
+                if (file === null) return res.notFound("File not found");
+
+                req.userEntity.avatar = file;
+            }
+
+            if (name) req.userEntity.name = name;
+            if (surname) req.userEntity.surname = surname;
+
+            const userRepo = app.dataSource.getRepository(User);
+            await userRepo.save(req.userEntity);
+
+            return Value.Encode(PrivateUserSchema, req.userEntity);
         }
     );
 
