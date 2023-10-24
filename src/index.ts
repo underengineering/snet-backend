@@ -34,6 +34,11 @@ async function main() {
             value
         )
     );
+    FormatRegistry.Set("email", (value) =>
+        /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(
+            value
+        )
+    );
     FormatRegistry.Set("date-time", (value) => {
         const DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         const DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
