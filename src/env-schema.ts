@@ -16,7 +16,7 @@ const EnvSchema = Type.Object({
     DB_PASSWORD: Type.String(),
     DB_DATABASE: Type.String(),
 
-    BCRYPT_ROUNDS: Type.Integer({ default:10,minimum: 0 }),
+    BCRYPT_ROUNDS: Type.Integer({ default: 10, minimum: 0 }),
 
     STORAGE_PATH: Type.String(),
     STORAGE_TMP_PATH: Type.Optional(Type.String()),
