@@ -47,7 +47,11 @@ const authenticatePlugin = fastifyPlugin(async function (app) {
             const body = await req.jwtVerify<JwtBody>();
 
             const userRepo = app.dataSource.getRepository(User);
-            const user = await userRepo.findOneBy({ id: body.id });
+            const user = await userRepo.findOne({
+                relations: { avatar: true },
+                where: { id: body.id },
+            });
+
             if (user === null) return res.unauthorized("User not found");
             if (user.deletedAt !== null)
                 return res.unauthorized("This user is deleted");
