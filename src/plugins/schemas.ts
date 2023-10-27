@@ -139,7 +139,7 @@ export const DMSchema = Type.Object(
     {
         id: Type.String({ format: "uuid" }),
         createdAt: Type.String({ format: "date-time" }),
-        participant: Type.Ref<typeof PublicUserSchema>("PublicUserSchema"),
+        participant: Type.Ref(PublicUserSchema),
     },
     { $id: "DMSchema" }
 );
@@ -149,7 +149,7 @@ export const MessageSchema = Type.Transform(
         {
             id: Type.Integer(),
             createdAt: Type.String({ format: "date-time" }),
-            author: Type.Ref<typeof PublicUserSchema>("PublicUserSchema"),
+            author: Type.Ref(PublicUserSchema),
             content: Type.String(),
             acknowledged: Type.Boolean(),
         },
