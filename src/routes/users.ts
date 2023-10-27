@@ -75,6 +75,7 @@ const route: FastifyPluginCallback = (
             const userRepo = app.dataSource.getRepository(User);
             const users = await userRepo
                 .createQueryBuilder("user")
+                .leftJoinAndSelect("user.avatar", "avatar")
                 .orderBy(
                     "levenshtein(CONCAT(user.name, user.surname), :query)",
                     "ASC"
