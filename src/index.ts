@@ -21,6 +21,7 @@ import schemasPlugin from "./plugins/schemas";
 import typeOrmPlugin from "./plugins/typeorm";
 import wsPlugin from "./plugins/ws";
 import * as routes from "./routes";
+import { FileService } from "./services/file";
 
 async function main() {
     const app: FastifyInstance = fastify({
@@ -151,9 +152,12 @@ async function main() {
         entities: [User, Message, DirectMessage, FriendRequest, File],
     });
 
+    // Create services
+    const fileService = new FileService(app);
+
     // Register routes
     app.register(routes.dms, { prefix: "/dms" });
-    app.register(routes.files, { prefix: "/files" });
+    app.register(routes.files, { prefix: "/files", fileService });
     app.register(routes.friends, { prefix: "/friends" });
     app.register(routes.login, { prefix: "/flow" });
     app.register(routes.register, { prefix: "/flow" });
