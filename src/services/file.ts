@@ -18,9 +18,8 @@ export class FileService {
     async getFile(hashSha256: string) {
         const fileRepo = this.app.dataSource.getRepository(File);
         const foundFile = await fileRepo.findOneBy({ hashSha256 });
-        if (foundFile === null) {
-            return undefined;
-        }
+        if (foundFile === null)
+            throw this.app.httpErrors.notFound("File not found");
 
         const filePath = `${this.app.config.STORAGE_PATH}/${foundFile.partition}/${foundFile.hashSha256}`;
         const fileStream = fs.createReadStream(filePath);

@@ -38,12 +38,8 @@ const route: FastifyPluginCallback<Options> = (
         async (req, res) => {
             const { hashSha256 } = req.params;
 
-            const file = await fileService.getFile(hashSha256);
-            if (file === undefined) return res.notFound("File not found");
-
-            return res
-                .header("Content-Type", file.file.mimeType)
-                .send(file.stream);
+            const { file, stream } = await fileService.getFile(hashSha256);
+            return res.header("Content-Type", file.mimeType).send(stream);
         }
     );
 
