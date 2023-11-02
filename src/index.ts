@@ -21,6 +21,7 @@ import schemasPlugin from "./plugins/schemas";
 import typeOrmPlugin from "./plugins/typeorm";
 import wsPlugin from "./plugins/ws";
 import * as routes from "./routes";
+import { DMService } from "./services/dm";
 import { FileService } from "./services/file";
 
 async function main() {
@@ -154,9 +155,10 @@ async function main() {
 
     // Create services
     const fileService = new FileService(app);
+    const dmService = new DMService(app);
 
     // Register routes
-    app.register(routes.dms, { prefix: "/dms" });
+    app.register(routes.dms, { prefix: "/dms", dmService });
     app.register(routes.files, { prefix: "/files", fileService });
     app.register(routes.friends, { prefix: "/friends" });
     app.register(routes.login, { prefix: "/flow" });

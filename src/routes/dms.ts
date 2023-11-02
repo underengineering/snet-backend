@@ -1,12 +1,8 @@
 import { FastifyPluginCallback } from "fastify";
-import { In, IsNull, LessThan, Not } from "typeorm";
 
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 
-import { DirectMessage } from "../entity/DirectMessage";
-import { Message } from "../entity/Message";
-import { FriendRequest, User } from "../entity/User";
 import { AuthenticateResponseSchema } from "../plugins/authenticate";
 import {
     DMSchema,
@@ -14,11 +10,16 @@ import {
     PublicUserSchema,
     SensibleErrorSchema,
 } from "../plugins/schemas";
+import { DMService } from "../services/dm";
 import { FastifyInstanceTypeBox } from "../utils";
 
-const route: FastifyPluginCallback = (
+interface Options {
+    dmService: DMService;
+}
+
+const route: FastifyPluginCallback<Options> = (
     app: FastifyInstanceTypeBox,
-    _opts,
+    { dmService },
     done
 ) => {
     const TAGS = ["dms"];
@@ -45,74 +46,18 @@ const route: FastifyPluginCallback = (
             } as const,
             onRequest: (req, res) => app.authenticate(req, res),
         },
-        async (req, res) => {
-            const { participant } = req.body;
+        async (req) => {
+            const { participant: participantId } = req.body;
 
-            const userRepo = app.dataSource.getRepository(User);
-            const friendRequestsRepo =
-                app.dataSource.getRepository(FriendRequest);
-            const participantEntity = await userRepo.findOne({
-                relations: { avatar: true },
-                where: {
-                    id: participant,
-                },
-            });
-
-            if (participantEntity === null)
-                return res.notFound("Participant not found");
-
-            const inFriendList = await friendRequestsRepo.exist({
-                where: [
-                    {
-                        sender: { id: req.userId },
-                        receiver: { id: participant },
-                        acceptedAt: Not(IsNull()),
-                    },
-                    {
-                        sender: { id: participant },
-                        receiver: { id: req.userId },
-                        acceptedAt: Not(IsNull()),
-                    },
-                ],
-            });
-
-            if (!inFriendList)
-                return res.badRequest(
-                    "Tried to add a participant not in friend list"
-                );
-
-            const dmRepo = app.dataSource.getRepository(DirectMessage);
-
-            // Check for an existing dm first
-            const foundDM = await dmRepo.findOne({
-                relations: { user1: { avatar: true }, user2: { avatar: true } },
-                where: {
-                    user1: In([req.userId, participant]),
-                    user2: In([req.userId, participant]),
-                },
-            });
-
-            if (foundDM !== null)
-                return {
-                    ...foundDM,
-                    createdAt: foundDM.createdAt.toISOString(),
-                    participant: Value.Encode(
-                        PublicUserSchema,
-                        participantEntity
-                    ),
-                };
-
-            const newDM = dmRepo.create({
-                user1: req.userEntity,
-                user2: participantEntity,
-            });
-
-            await dmRepo.save(newDM);
+            const { dm, participant } = await dmService.create(
+                req.userEntity,
+                participantId
+            );
 
             return {
-                ...newDM,
-                createdAt: newDM.createdAt.toISOString(),
-                participant: Value.Encode(PublicUserSchema, participantEntity),
+                ...dm,
+                createdAt: dm.createdAt.toISOString(),
+                participant: Value.Encode(PublicUserSchema, participant),
             };
         }
     );
@@ -138,37 +83,7 @@ const route: FastifyPluginCallback = (
             onRequest: (req, res) => app.authenticate(req, res),
         },
         async (req) => {
-            const dmRepo = app.dataSource.getRepository(DirectMessage);
-            const foundDMs = await dmRepo
-                .createQueryBuilder("dms")
-                .leftJoinAndSelect("dms.user1", "user1")
-                .leftJoinAndSelect("dms.user2", "user2")
-                .leftJoinAndSelect("user1.avatar", "user1.avatar")
-                .leftJoinAndSelect("user2.avatar", "user2.avatar")
-                .where('"dms"."user1Id" = :id OR "dms"."user2Id" = :id', {
-                    id: req.userId,
-                })
-                .getMany();
-
-            const messageRepo = app.dataSource.getRepository(Message);
-            const foundDMsWithMessage = await Promise.all(
-                foundDMs.map<Promise<DirectMessage>>((dm) =>
-                    messageRepo
-                        .find({
-                            relations: { author: { avatar: true } },
-                            where: { dm: { id: dm.id } },
-                            order: { createdAt: "desc" },
-                            take: 1,
-                        })
-                        .then((messages) => {
-                            // Add last message
-                            return {
-                                ...dm,
-                                messages,
-                            };
-                        })
-                )
-            );
+            const foundDMsWithMessage = await dmService.getAll(req.userEntity);
 
             return foundDMsWithMessage.map((chat) => {
                 const participant =
@@ -211,57 +126,9 @@ const route: FastifyPluginCallback = (
             } as const,
             onRequest: (req, res) => app.authenticate(req, res),
         },
-        async (req, res) => {
+        async (req) => {
             const { id, content, nonce } = req.body;
-
-            const dmRepo = app.dataSource.getRepository(DirectMessage);
-            const foundDM = await dmRepo.findOne({
-                relations: {
-                    user1: true,
-                    user2: true,
-                    messages: true,
-                },
-                where: {
-                    id,
-                },
-            });
-
-            if (foundDM === null) return res.notFound("Chat not found");
-
-            const messageRepo = app.dataSource.getRepository(Message);
-            const message = messageRepo.create({
-                author: req.userEntity,
-                dm: { id },
-                content,
-            });
-
-            await messageRepo.save(message);
-
-            const participant =
-                foundDM.user1.id === req.userId ? foundDM.user2 : foundDM.user1;
-            const encodedMessage = Value.Encode(
-                MessageSchema,
-                [PublicUserSchema],
-                message
-            );
-
-            app.wsServer.send(participant.id, {
-                type: "message",
-                body: {
-                    dmId: foundDM.id,
-                    message: encodedMessage,
-                },
-            });
-
-            app.wsServer.send(req.userId, {
-                type: "message",
-                body: {
-                    dmId: foundDM.id,
-                    message: { ...encodedMessage, nonce },
-                },
-            });
-
-            return message;
+            return dmService.postMessage(req.userEntity, id, content, nonce);
         }
     );
 
@@ -288,37 +155,10 @@ const route: FastifyPluginCallback = (
         async (req) => {
             const { id, beforeId, limit } = req.query;
 
-            const messageRepo = app.dataSource.getRepository(Message);
-            let messagesQuery = messageRepo
-                .createQueryBuilder("message")
-                .innerJoin("message.dm", "dm")
-                .innerJoinAndSelect("message.author", "author");
-
-            if (beforeId === undefined) {
-                messagesQuery = messagesQuery.where("dm.id = :dmId", {
-                    dmId: id,
-                });
-            } else {
-                messagesQuery = messagesQuery.where(
-                    "dm.id = :dmId AND message.id < :beforeId",
-                    {
-                        dmId: id,
-                        beforeId,
-                    }
-                );
-            }
-
-            messagesQuery = messagesQuery
-                .orderBy("message.id", "DESC")
-                .limit(limit ?? 30);
-
-            const messages = await messagesQuery.getMany();
-
-            return messages
-                .map((message) =>
-                    Value.Encode(MessageSchema, [PublicUserSchema], message)
-                )
-                .reverse();
+            const messages = await dmService.paginate(id, beforeId, limit);
+            return messages.map((message) =>
+                Value.Encode(MessageSchema, [PublicUserSchema], message)
+            );
         }
     );
 
