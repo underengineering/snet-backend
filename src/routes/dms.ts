@@ -199,6 +199,7 @@ const route: FastifyPluginCallback = (
                 body: Type.Object({
                     id: Type.String({ format: "uuid" }),
                     content: Type.String({ maxLength: 2000 }),
+                    nonce: Type.Optional(Type.Integer()),
                 }),
                 response: {
                     200: Type.Object({ id: Type.Integer({ minimum: 0 }) }),
@@ -211,11 +212,13 @@ const route: FastifyPluginCallback = (
             onRequest: (req, res) => app.authenticate(req, res),
         },
         async (req, res) => {
-            const { id, content } = req.body;
+            const { id, content, nonce } = req.body;
 
             const dmRepo = app.dataSource.getRepository(DirectMessage);
             const foundDM = await dmRepo.findOne({
                 relations: {
+                    user1: true,
+                    user2: true,
                     messages: true,
                 },
                 where: {
@@ -233,6 +236,30 @@ const route: FastifyPluginCallback = (
             });
 
             await messageRepo.save(message);
+
+            const participant =
+                foundDM.user1.id === req.userId ? foundDM.user2 : foundDM.user1;
+            const encodedMessage = Value.Encode(
+                MessageSchema,
+                [PublicUserSchema],
+                message
+            );
+
+            app.wsServer.send(participant.id, {
+                type: "message",
+                body: {
+                    dmId: foundDM.id,
+                    message: encodedMessage,
+                },
+            });
+
+            app.wsServer.send(req.userId, {
+                type: "message",
+                body: {
+                    dmId: foundDM.id,
+                    message: { ...encodedMessage, nonce },
+                },
+            });
 
             return message;
         }
@@ -262,19 +289,36 @@ const route: FastifyPluginCallback = (
             const { id, beforeId, limit } = req.query;
 
             const messageRepo = app.dataSource.getRepository(Message);
-            const messages = await messageRepo.find({
-                relations: { author: { avatar: true } },
-                where: {
-                    id: beforeId !== undefined ? LessThan(beforeId) : undefined,
-                    dm: { id },
-                },
-                order: { id: "asc" },
-                take: limit ?? 30,
-            });
+            let messagesQuery = messageRepo
+                .createQueryBuilder("message")
+                .innerJoin("message.dm", "dm")
+                .innerJoinAndSelect("message.author", "author");
 
-            return messages.map((message) =>
-                Value.Encode(MessageSchema, [PublicUserSchema], message)
-            );
+            if (beforeId === undefined) {
+                messagesQuery = messagesQuery.where("dm.id = :dmId", {
+                    dmId: id,
+                });
+            } else {
+                messagesQuery = messagesQuery.where(
+                    "dm.id = :dmId AND message.id < :beforeId",
+                    {
+                        dmId: id,
+                        beforeId,
+                    }
+                );
+            }
+
+            messagesQuery = messagesQuery
+                .orderBy("message.id", "DESC")
+                .limit(limit ?? 30);
+
+            const messages = await messagesQuery.getMany();
+
+            return messages
+                .map((message) =>
+                    Value.Encode(MessageSchema, [PublicUserSchema], message)
+                )
+                .reverse();
         }
     );
 

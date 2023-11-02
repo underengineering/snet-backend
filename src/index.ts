@@ -8,6 +8,7 @@ import { ajvFilePlugin, fastifyMultipart } from "@fastify/multipart";
 import fastifySensible from "@fastify/sensible";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
+import fastifyWebsocket from "@fastify/websocket";
 import { FormatRegistry } from "@sinclair/typebox";
 
 import { DirectMessage } from "./entity/DirectMessage";
@@ -18,11 +19,15 @@ import envSchema from "./env-schema";
 import authenticatePlugin from "./plugins/authenticate";
 import schemasPlugin from "./plugins/schemas";
 import typeOrmPlugin from "./plugins/typeorm";
+import wsPlugin from "./plugins/ws";
 import * as routes from "./routes";
 
 async function main() {
     const app: FastifyInstance = fastify({
-        logger: true,
+        logger: {
+            enabled: true,
+            level: process.env.LOG_LEVEL ?? "info",
+        },
         ajv: {
             plugins: [ajvFilePlugin],
         },
@@ -131,10 +136,12 @@ async function main() {
             signed: false,
         },
     });
+    app.register(fastifyWebsocket, { options: { perMessageDeflate: false } });
     app.register(fastifyCookie);
     app.register(fastifySensible);
     app.register(authenticatePlugin);
     app.register(schemasPlugin);
+    app.register(wsPlugin);
     await app.register(typeOrmPlugin, {
         host: app.config.DB_HOST,
         port: app.config.DB_PORT,
@@ -151,6 +158,7 @@ async function main() {
     app.register(routes.login, { prefix: "/flow" });
     app.register(routes.register, { prefix: "/flow" });
     app.register(routes.users, { prefix: "/users" });
+    app.register(routes.ws, { prefix: "/ws" });
 
     // Start the app
     try {

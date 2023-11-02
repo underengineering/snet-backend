@@ -59,6 +59,7 @@ export const PrivateUserSchema = Type.Transform(
         {
             id: Type.String({ format: "uuid" }),
             registeredAt: Type.String({ format: "date-time" }),
+            lastOnlineAt: Type.String({ format: "date-time" }),
             name: Type.String(),
             surname: Type.String(),
             email: Type.String({ format: "email" }),
@@ -71,6 +72,7 @@ export const PrivateUserSchema = Type.Transform(
         const entity = new User();
         entity.id = user.id;
         entity.registeredAt = new Date(user.registeredAt);
+        entity.lastOnlineAt = new Date(user.lastOnlineAt);
         entity.name = user.name;
         entity.surname = user.surname;
         entity.email = user.email;
@@ -82,6 +84,7 @@ export const PrivateUserSchema = Type.Transform(
     .Encode((user) => ({
         ...user,
         registeredAt: user.registeredAt.toISOString(),
+        lastOnlineAt: user.lastOnlineAt.toISOString(),
         avatar: user.avatar?.hashSha256,
     }));
 
